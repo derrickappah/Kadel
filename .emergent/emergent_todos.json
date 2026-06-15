@@ -1,0 +1,38 @@
+[
+  {
+    "content": "Phase 1: Get Paystack integration playbook",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 1: Paystack POC - Skipped (needs browser + real keys; integration pattern proven from playbook)",
+    "status": "completed"
+  },
+  {
+    "content": "Phase 2: Get design guidelines from design agent",
+    "status": "in_progress"
+  },
+  {
+    "content": "Phase 2: Backend implementation (models, endpoints, business logic)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Frontend implementation (booking wizard, admin panel)",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: Email confirmation integration",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: All user stories covered in Development",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 2: End to End Testing using Testing Agent",
+    "status": "pending"
+  },
+  {
+    "content": "Phase 3: Testing, hardening, and UX polish",
+    "status": "pending"
+  }
+]
