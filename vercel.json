@@ -6,7 +6,7 @@
             "framework": "create-react-app"
         },
         "backend": {
-            "root": "backend",
+            "entrypoint": "backend/server.py",
             "routePrefix": "/_/backend"
         }
     }
