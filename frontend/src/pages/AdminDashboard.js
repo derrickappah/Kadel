@@ -230,8 +230,7 @@ export default function AdminDashboard() {
             <button className="md:hidden p-1" onClick={() => setMobileNav(!mobileNav)} data-testid="admin-mobile-nav-trigger">
               {mobileNav ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
-            <GraduationCap className="h-6 w-6 text-primary" />
-            <span className="font-display font-semibold">GradTable Admin</span>
+            <span className="font-display font-semibold">KaDel Admin</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground hidden sm:inline">{localStorage.getItem("admin_email")}</span>

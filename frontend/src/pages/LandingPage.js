@@ -21,14 +21,10 @@ export default function LandingPage() {
       <nav className="sticky top-0 z-50 backdrop-blur bg-background/80 border-b border-border">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <GraduationCap className="h-7 w-7 text-primary" />
-            <span className="font-display text-xl font-semibold">GradTable</span>
+            <span className="font-display text-xl font-semibold">KaDel</span>
             <span className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-0.5 rounded-full">Ghana</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/login')} data-testid="admin-link">
-              Admin
-            </Button>
             <Button size="sm" onClick={() => navigate('/book')} data-testid="nav-book-now">
               Book Now <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
@@ -150,8 +146,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-primary" />
-              <span className="font-display text-sm font-semibold">GradTable Ghana</span>
+              <span className="font-display text-sm font-semibold">KaDel Ghana</span>
             </div>
             <p className="text-xs text-muted-foreground">Graduation Event Booking System</p>
           </div>

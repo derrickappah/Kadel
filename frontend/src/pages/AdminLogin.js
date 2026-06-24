@@ -42,8 +42,7 @@ export default function AdminLogin() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-sm">
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 mb-2">
-            <GraduationCap className="h-8 w-8 text-primary" />
-            <span className="font-display text-2xl font-semibold">GradTable</span>
+            <span className="font-display text-2xl font-semibold">KaDel</span>
           </div>
           <p className="text-sm text-muted-foreground">Admin Panel</p>
           <div className="kente-bar w-16 mx-auto mt-3" />
@@ -60,7 +59,7 @@ export default function AdminLogin() {
                 <Input
                   id="admin-email"
                   type="email"
-                  placeholder="admin@gradtable.com"
+                  placeholder="admin@kadel.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   data-testid="admin-email-input"

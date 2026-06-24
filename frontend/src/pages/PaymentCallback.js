@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, XCircle, Loader2, GraduationCap, Copy, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const SUCCESS_IMG = "https://images.unsplash.com/photo-1627556704290-2b1f5853ff78?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwxfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
@@ -74,8 +75,7 @@ export default function PaymentCallback() {
       {/* Top bar */}
       <div className="border-b border-border bg-card">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-2">
-          <GraduationCap className="h-5 w-5 text-primary" />
-          <span className="font-display font-semibold">GradTable</span>
+          <span className="font-display font-semibold">KaDel</span>
         </div>
       </div>
 
@@ -133,27 +133,24 @@ export default function PaymentCallback() {
 
                 {/* Booking Summary */}
                 {booking && (
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Graduate</span>
-                      <span className="font-medium">{booking.graduate_name}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Course</span>
-                      <span className="font-medium">{booking.course}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Graduation Date</span>
-                      <span className="font-medium">{booking.graduation_date}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Guests</span>
-                      <span className="font-medium">{booking.attendees_count}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Paid</span>
-                      <span className="font-bold text-primary">GHC {booking.total_amount?.toFixed(2)}</span>
-                    </div>
+                  <div className="space-y-2.5 text-sm">
+                    {[
+                      { label: "Graduate", value: booking.graduate_name },
+                      { label: "Course", value: booking.course },
+                      { label: "Graduation Date", value: booking.graduation_date },
+                      { label: "Guests", value: `${booking.attendees_count} people` },
+                      { label: "Total Paid", value: `GHC ${booking.total_amount?.toFixed(2)}`, highlight: true }
+                    ].map((item, idx) => (
+                      <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 border-b border-border/40 last:border-0 gap-0.5 sm:gap-2">
+                        <span className="text-muted-foreground font-medium shrink-0">{item.label}</span>
+                        <span className={cn(
+                          item.highlight ? "font-bold text-primary" : "font-semibold text-foreground",
+                          "text-left sm:text-right break-all max-w-full sm:max-w-[70%]"
+                        )}>
+                          {item.value}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
 

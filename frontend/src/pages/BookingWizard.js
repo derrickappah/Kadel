@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import { GraduationCap, ArrowLeft, ArrowRight, User, Users, Utensils, CreditCard, Minus, Plus, Loader2, CheckCircle } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -191,35 +192,36 @@ export default function BookingWizard() {
       ) : items.map(item => {
         const qty = selections[item.id]?.quantity || 0;
         return (
-          <Card key={item.id} className="p-3" data-testid="menu-item-card">
+          <Card key={item.id} className="p-3 sm:p-4 border-border/80 shadow-sm" data-testid="menu-item-card">
             <div className="flex items-center justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{item.name}</span>
-                  <Badge variant="secondary" className="text-xs">GHC {item.price.toFixed(2)}</Badge>
+                  <span className="font-semibold text-sm sm:text-base text-foreground">{item.name}</span>
+                  <Badge variant="secondary" className="text-xs font-medium">GHC {item.price.toFixed(2)}</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {item.stock > 0 ? `${item.stock} packs available` : "Sold out"}
-                  {item.vendor && ` · ${item.vendor}`}
-                </p>
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+                  <span className={`inline-block w-1.5 h-1.5 rounded-full ${item.stock > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <span>{item.stock > 0 ? `${item.stock} packs available` : "Sold out"}</span>
+                  {item.vendor && <span className="text-muted-foreground/60"> · {item.vendor}</span>}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  className="qty-btn"
+                  className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                   onClick={() => updateQty(item.id, -1)}
                   disabled={qty === 0}
                   data-testid="menu-item-quantity-decrease"
                 >
-                  <Minus className="h-3.5 w-3.5" />
+                  <Minus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </button>
-                <span className="w-8 text-center text-sm font-medium">{qty}</span>
+                <span className="w-8 text-center text-sm font-semibold text-foreground select-none">{qty}</span>
                 <button
-                  className="qty-btn"
+                  className="w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border bg-card text-foreground hover:bg-secondary active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100"
                   onClick={() => updateQty(item.id, 1)}
                   disabled={item.stock <= qty}
                   data-testid="menu-item-quantity-increase"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
             </div>
@@ -232,27 +234,41 @@ export default function BookingWizard() {
   return (
     <div className="min-h-screen bg-background">
       {/* Top Bar */}
-      <div className="sticky top-0 z-30 backdrop-blur bg-background/80 border-b border-border" data-testid="booking-stepper">
-        <div className="max-w-2xl mx-auto px-4 py-3">
+      <div className="sticky top-0 z-30 backdrop-blur bg-background/85 border-b border-border/80 shadow-sm" data-testid="booking-stepper">
+        <div className="max-w-2xl mx-auto px-4 py-3 sm:py-4">
           <div className="flex items-center justify-between mb-2">
-            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-              <GraduationCap className="h-5 w-5 text-primary" />
-              <span className="font-display font-semibold">GradTable</span>
+            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <span className="font-display font-semibold text-base tracking-wide text-foreground">KaDel</span>
             </button>
-            <span className="text-xs text-muted-foreground" data-testid="booking-stepper-current-step">
+            <span className="text-xs font-semibold text-muted-foreground" data-testid="booking-stepper-current-step">
               Step {step + 1} of 4
             </span>
           </div>
-          <Progress value={progress} className="h-1.5" />
-          <div className="flex justify-between mt-2">
-            {STEP_LABELS.map((s, i) => (
-              <div key={i} className={`flex items-center gap-1 text-xs ${
-                i <= step ? 'text-primary font-medium' : 'text-muted-foreground'
-              }`}>
-                {i < step ? <CheckCircle className="h-3.5 w-3.5" /> : <s.icon className="h-3.5 w-3.5" />}
-                <span className="hidden sm:inline">{s.label}</span>
-              </div>
-            ))}
+          <Progress value={progress} className="h-1.5 transition-all duration-300" />
+          <div className="flex justify-between mt-3 gap-1">
+            {STEP_LABELS.map((s, i) => {
+              const Icon = s.icon;
+              const isActive = i === step;
+              const isCompleted = i < step;
+              return (
+                <div key={i} className={cn(
+                  "flex items-center gap-1.5 text-xs transition-colors duration-200",
+                  i <= step ? "text-primary font-semibold" : "text-muted-foreground"
+                )}>
+                  {isCompleted ? (
+                    <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
+                  ) : (
+                    <Icon className={cn("h-4 w-4 shrink-0", isActive && "text-primary animate-pulse")} />
+                  )}
+                  <span className={cn(
+                    "hidden sm:inline",
+                    isActive && "inline text-[11px] sm:text-xs font-bold"
+                  )}>
+                    {s.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -278,21 +294,23 @@ export default function BookingWizard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label htmlFor="graduateName">Graduate Name *</Label>
+                    <Label htmlFor="graduateName" className="inline-block mb-1.5 text-sm font-medium">Graduate Name *</Label>
                     <Input id="graduateName" placeholder="Full name" value={form.graduateName}
                       onChange={e => setForm(p => ({ ...p, graduateName: e.target.value }))}
+                      className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="input-graduate-name" />
                   </div>
                   <div>
-                    <Label htmlFor="course">Course *</Label>
+                    <Label htmlFor="course" className="inline-block mb-1.5 text-sm font-medium">Course *</Label>
                     <Input id="course" placeholder="e.g. BSc Computer Science" value={form.course}
                       onChange={e => setForm(p => ({ ...p, course: e.target.value }))}
+                      className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="input-course" />
                   </div>
                   <div>
-                    <Label>Date of Graduation *</Label>
+                    <Label className="inline-block mb-1.5 text-sm font-medium">Date of Graduation *</Label>
                     <Select value={form.graduationDate} onValueChange={v => setForm(p => ({ ...p, graduationDate: v }))}>
-                      <SelectTrigger data-testid="graduation-date-picker">
+                      <SelectTrigger className="h-11 md:h-9 text-base md:text-sm w-full" data-testid="graduation-date-picker">
                         <SelectValue placeholder="Select graduation date" />
                       </SelectTrigger>
                       <SelectContent>
@@ -303,15 +321,17 @@ export default function BookingWizard() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="phone">Phone / WhatsApp Number *</Label>
+                    <Label htmlFor="phone" className="inline-block mb-1.5 text-sm font-medium">Phone / WhatsApp Number *</Label>
                     <Input id="phone" placeholder="+233 XX XXX XXXX" value={form.phone}
                       onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                      className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="input-phone" />
                   </div>
                   <div>
-                    <Label htmlFor="email">Official Gmail Account *</Label>
+                    <Label htmlFor="email" className="inline-block mb-1.5 text-sm font-medium">Official Gmail Account *</Label>
                     <Input id="email" type="email" placeholder="your.name@gmail.com" value={form.email}
                       onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+                      className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="input-email" />
                   </div>
                 </CardContent>
@@ -330,29 +350,29 @@ export default function BookingWizard() {
                     <div className="space-y-3">
                       {["10", "20"].map(val => (
                         <label key={val} className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-colors duration-150 ${
-                          attendeesOption === val ? 'border-primary bg-primary/5' : 'border-border hover:bg-secondary/50'
+                          attendeesOption === val ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:bg-secondary/50'
                         }`}>
                           <RadioGroupItem value={val} />
                           <div>
-                            <span className="font-medium">{val} People</span>
-                            <p className="text-xs text-muted-foreground">Event fee: GHC {(eventFee * parseInt(val)).toFixed(2)}</p>
+                            <span className="font-semibold text-sm sm:text-base">{val} People</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">Event fee: GHC {(eventFee * parseInt(val)).toFixed(2)}</p>
                           </div>
                         </label>
                       ))}
                       <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-colors duration-150 ${
-                        attendeesOption === 'more' ? 'border-primary bg-primary/5' : 'border-border hover:bg-secondary/50'
+                        attendeesOption === 'more' ? 'border-primary bg-primary/5 shadow-sm' : 'border-border hover:bg-secondary/50'
                       }`}>
                         <RadioGroupItem value="more" />
                         <div className="flex-1">
-                          <span className="font-medium">More</span>
-                          <p className="text-xs text-muted-foreground">Enter custom number</p>
+                          <span className="font-semibold text-sm sm:text-base">More</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">Enter custom number</p>
                         </div>
                       </label>
                     </div>
                   </RadioGroup>
                   {attendeesOption === "more" && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="mt-4">
-                      <Label htmlFor="customAttendees">Number of People</Label>
+                      <Label htmlFor="customAttendees" className="inline-block mb-1.5 text-sm font-medium">Number of People</Label>
                       <Input
                         id="customAttendees"
                         type="number"
@@ -360,6 +380,7 @@ export default function BookingWizard() {
                         placeholder="Enter number"
                         value={customAttendees}
                         onChange={e => setCustomAttendees(e.target.value)}
+                        className="h-11 md:h-9 text-base md:text-sm"
                         data-testid="attendees-custom-input"
                       />
                     </motion.div>
@@ -377,15 +398,16 @@ export default function BookingWizard() {
                     <p className="text-sm text-muted-foreground">Would you like food to be taken care of?</p>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center justify-between p-4 rounded-xl border border-border">
-                      <div>
-                        <span className="font-medium">Add food, drinks & pastries</span>
-                        <p className="text-xs text-muted-foreground">Select items for your celebration</p>
+                    <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card shadow-sm">
+                      <div className="pr-3">
+                        <span className="font-semibold text-sm sm:text-base">Add food, drinks & pastries</span>
+                        <p className="text-xs text-muted-foreground mt-0.5">Select items for your celebration</p>
                       </div>
                       <Switch
                         checked={wantsFood}
                         onCheckedChange={setWantsFood}
                         data-testid="food-toggle-switch"
+                        className="data-[state=checked]:bg-primary"
                       />
                     </div>
                   </CardContent>
@@ -394,12 +416,12 @@ export default function BookingWizard() {
                 {wantsFood && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <Card>
-                      <CardContent className="pt-6">
+                      <CardContent className="pt-6 px-3 sm:px-6">
                         <Tabs defaultValue="food" data-testid="menu-tabs">
-                          <TabsList className="w-full">
-                            <TabsTrigger value="food" className="flex-1">Food</TabsTrigger>
-                            <TabsTrigger value="drink" className="flex-1">Drinks</TabsTrigger>
-                            <TabsTrigger value="pastry" className="flex-1">Pastries</TabsTrigger>
+                          <TabsList className="w-full bg-muted/60 p-1 rounded-xl h-11 sm:h-10">
+                            <TabsTrigger value="food" className="flex-1 rounded-lg text-xs sm:text-sm font-medium py-2">Food</TabsTrigger>
+                            <TabsTrigger value="drink" className="flex-1 rounded-lg text-xs sm:text-sm font-medium py-2">Drinks</TabsTrigger>
+                            <TabsTrigger value="pastry" className="flex-1 rounded-lg text-xs sm:text-sm font-medium py-2">Pastries</TabsTrigger>
                           </TabsList>
                           <TabsContent value="food" className="mt-4">
                             {renderMenuItems(foodItems, "food items")}
@@ -425,46 +447,54 @@ export default function BookingWizard() {
                   <CardTitle className="font-display text-xl">Review & Pay</CardTitle>
                   <p className="text-sm text-muted-foreground">Confirm your booking details</p>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
                   {/* Personal Info Summary */}
-                  <div className="bg-secondary/50 rounded-xl p-4 space-y-2">
-                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Booking Details</h4>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <span className="text-muted-foreground">Name</span><span className="font-medium">{form.graduateName}</span>
-                      <span className="text-muted-foreground">Course</span><span className="font-medium">{form.course}</span>
-                      <span className="text-muted-foreground">Graduation</span><span className="font-medium">{form.graduationDate}</span>
-                      <span className="text-muted-foreground">Phone</span><span className="font-medium">{form.phone}</span>
-                      <span className="text-muted-foreground">Email</span><span className="font-medium">{form.email}</span>
-                      <span className="text-muted-foreground">Guests</span><span className="font-medium">{attendeesCount}</span>
+                  <div className="bg-secondary/40 border border-border/40 rounded-xl p-4 space-y-3">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Booking Details</h4>
+                    <div className="flex flex-col gap-2.5">
+                      {[
+                        { label: "Name", value: form.graduateName },
+                        { label: "Course", value: form.course },
+                        { label: "Graduation", value: form.graduationDate },
+                        { label: "Phone", value: form.phone },
+                        { label: "Email", value: form.email },
+                        { label: "Guests", value: `${attendeesCount} people` },
+                      ].map((item, idx) => (
+                        <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 border-b border-border/40 last:border-0 text-sm gap-0.5 sm:gap-2">
+                          <span className="text-muted-foreground font-medium shrink-0">{item.label}</span>
+                          <span className="font-semibold text-foreground text-left sm:text-right break-all max-w-full sm:max-w-[70%]">
+                            {item.value || "---"}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
                   <Separator />
 
                   {/* Cost Breakdown */}
-                  <div data-testid="booking-total-summary">
-                    <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Cost Breakdown</h4>
-                    <div className="space-y-2">
+                  <div data-testid="booking-total-summary" className="space-y-3">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Cost Breakdown</h4>
+                    <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span>Event Fee ({attendeesCount} guests x GHC {eventFee.toFixed(2)})</span>
-                        <span className="font-medium">GHC {baseCost.toFixed(2)}</span>
+                        <span className="text-muted-foreground">Event Fee ({attendeesCount} guests x GHC {eventFee.toFixed(2)})</span>
+                        <span className="font-semibold text-foreground">GHC {baseCost.toFixed(2)}</span>
                       </div>
                       {wantsFood && selectionsList.length > 0 && (
-                        <>
-                          <Separator className="my-2" />
-                          <p className="text-xs font-semibold text-muted-foreground">FOOD & BEVERAGES</p>
+                        <div className="space-y-2 pt-2 border-t border-border/40">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">FOOD & BEVERAGES</p>
                           {selectionsList.map(s => (
-                            <div key={s.product_id} className="flex justify-between text-sm">
-                              <span>{s.product_name} x{s.quantity}</span>
-                              <span>GHC {s.subtotal.toFixed(2)}</span>
+                            <div key={s.product_id} className="flex justify-between text-sm pl-2 border-l-2 border-primary/20">
+                              <span className="text-muted-foreground">{s.product_name} <span className="font-mono text-xs font-semibold text-foreground bg-secondary/80 px-1.5 py-0.5 rounded">x{s.quantity}</span></span>
+                              <span className="font-medium text-foreground">GHC {s.subtotal.toFixed(2)}</span>
                             </div>
                           ))}
-                        </>
+                        </div>
                       )}
-                      <Separator className="my-2" />
-                      <div className="flex justify-between text-base font-bold" data-testid="booking-total-amount">
-                        <span>Total</span>
-                        <span className="text-primary">GHC {totalCost.toFixed(2)}</span>
+                      <Separator className="my-3" />
+                      <div className="flex justify-between items-center text-base sm:text-lg font-bold" data-testid="booking-total-amount">
+                        <span className="text-foreground">Total Amount</span>
+                        <span className="text-primary text-lg sm:text-xl font-extrabold">GHC {totalCost.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -475,40 +505,44 @@ export default function BookingWizard() {
         </AnimatePresence>
       </div>
 
-      {/* Bottom Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 py-3 z-30">
-        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex-1">
+      {/* Bottom Sticky Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Price</span>
+            <span className="text-base sm:text-lg font-extrabold text-primary" data-testid="booking-total-amount-sticky">
+              GHC {totalCost.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex items-center gap-2.5">
             {step > 0 && (
-              <Button variant="secondary" onClick={goBack} className="rounded-xl">
-                <ArrowLeft className="mr-1 h-4 w-4" /> Back
+              <Button 
+                variant="outline" 
+                onClick={goBack} 
+                className="h-11 px-4 sm:px-5 rounded-xl border-border hover:bg-secondary text-muted-foreground hover:text-foreground active:scale-95 transition-all duration-150 flex items-center gap-1.5"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline">Back</span>
               </Button>
             )}
-          </div>
-          <div className="text-center">
-            {(step >= 2) && (
-              <div className="text-sm">
-                <span className="text-muted-foreground">Total: </span>
-                <span className="font-bold text-primary">GHC {totalCost.toFixed(2)}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex-1 flex justify-end">
             {step < 3 ? (
-              <Button onClick={goNext} className="rounded-xl">
-                Next <ArrowRight className="ml-1 h-4 w-4" />
+              <Button 
+                onClick={goNext} 
+                className="h-11 px-6 rounded-xl font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all duration-150"
+              >
+                Next <ArrowRight className="ml-1.5 h-4 w-4" />
               </Button>
             ) : (
               <Button
                 onClick={handlePay}
                 disabled={isSubmitting || totalCost <= 0}
-                className="rounded-xl bg-primary"
+                className="h-11 px-6 rounded-xl font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all duration-150"
                 data-testid="paystack-pay-button"
               >
                 {isSubmitting ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
                 ) : (
-                  <>Pay with Paystack <CreditCard className="ml-2 h-4 w-4" /></>
+                  <>Pay GHC {totalCost.toFixed(2)} <CreditCard className="ml-2 h-4 w-4" /></>
                 )}
               </Button>
             )}

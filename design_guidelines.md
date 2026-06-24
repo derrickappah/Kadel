@@ -1,6 +1,6 @@
 {
   "brand": {
-    "name": "GradTable Ghana",
+    "name": "KaDel Ghana",
     "visual_personality": [
       "celebratory + academic (graduation prestige)",
       "Ghanaian warmth (kente-inspired geometry as subtle accents)",

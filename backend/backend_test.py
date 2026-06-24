@@ -2,7 +2,7 @@ import requests
 import sys
 from datetime import datetime
 
-class GradTableAPITester:
+class KaDelAPITester:
     def __init__(self, base_url="https://grad-book-1.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.admin_token = None
@@ -159,7 +159,7 @@ class GradTableAPITester:
         print("="*60)
 
         login_data = {
-            "email": "admin@gradtable.com",
+            "email": "admin@kadel.com",
             "password": "admin123"
         }
 
@@ -265,11 +265,20 @@ class GradTableAPITester:
         self.run_test("Restore settings", "PATCH", "admin/settings", 200, data=settings_data, headers=headers)
 
 def main():
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except AttributeError:
+        pass  # stdout might not support reconfigure in some environments
     print("\n" + "="*60)
-    print("GRADTABLE GHANA API TEST SUITE")
+    print("KADEL GHANA API TEST SUITE")
     print("="*60)
     
-    tester = GradTableAPITester()
+    base_url = "https://grad-book-1.preview.emergentagent.com/api"
+    if len(sys.argv) > 1:
+        base_url = sys.argv[1]
+        print(f"Using custom base URL: {base_url}")
+        
+    tester = KaDelAPITester(base_url=base_url)
 
     # Run all tests
     tester.test_public_endpoints()
