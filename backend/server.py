@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
+from fastapi.responses import JSONResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from supabase import create_async_client, AsyncClient
@@ -19,9 +20,9 @@ import string
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Supabase connection
-supabase_url = os.environ['SUPABASE_URL']
-supabase_key = os.environ['SUPABASE_KEY']
+# Supabase connection (safely read env variables to prevent crashing on import)
+supabase_url = os.environ.get('SUPABASE_URL', '')
+supabase_key = os.environ.get('SUPABASE_KEY', '')
 
 # Config
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
@@ -146,15 +147,28 @@ async def send_confirmation_email(booking):
         logger.error(f"Email send failed: {e}")
         return False
 
-# ==================== STARTUP ====================
+# ==================== STARTUP & MIDDLEWARE ====================
 
 supabase: AsyncClient = None
 
 @app.on_event("startup")
 async def startup():
     global supabase
-    supabase = await create_async_client(supabase_url, supabase_key)
-    logger.info("Supabase AsyncClient initialized successfully")
+    if supabase_url and supabase_key:
+        supabase = await create_async_client(supabase_url, supabase_key)
+        logger.info("Supabase AsyncClient initialized successfully")
+    else:
+        logger.error("SUPABASE_URL or SUPABASE_KEY environment variables are missing! Supabase client NOT initialized.")
+
+@app.middleware("http")
+async def check_supabase_configured(request: Request, call_next):
+    if request.url.path.startswith("/api") and request.url.path not in ["/api", "/api/"]:
+        if not supabase_url or not supabase_key or supabase is None:
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "SUPABASE_URL and SUPABASE_KEY environment variables are missing. Please configure them in your Vercel Project Settings."}
+            )
+    return await call_next(request)
 
 # ==================== PUBLIC ROUTES ====================
 
