@@ -96,7 +96,7 @@ export default function PaymentCallback() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
                 <div className="text-white">
                   <CheckCircle className="h-8 w-8 mb-2" />
-                  <h2 className="font-display text-2xl font-semibold">Booking Confirmed!</h2>
+                  <h2 className="font-display text-2xl font-semibold">Reservation Confirmed!</h2>
                 </div>
               </div>
             </div>
@@ -136,9 +136,9 @@ export default function PaymentCallback() {
                   <div className="space-y-2.5 text-sm">
                     {[
                       { label: "Graduate", value: booking.graduate_name },
-                      { label: "Course", value: booking.course },
+                      { label: "Program", value: booking.course },
                       { label: "Graduation Date", value: booking.graduation_date },
-                      { label: "Guests", value: `${booking.attendees_count} people` },
+                      { label: "Guests", value: `${booking.attendees_count} guests` },
                       { label: "Total Paid", value: `GHC ${booking.total_amount?.toFixed(2)}`, highlight: true }
                     ].map((item, idx) => (
                       <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 border-b border-border/40 last:border-0 gap-0.5 sm:gap-2">

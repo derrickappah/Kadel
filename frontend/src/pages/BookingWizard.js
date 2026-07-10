@@ -113,7 +113,7 @@ export default function BookingWizard() {
   const validateStep = (s) => {
     if (s === 0) {
       if (!form.graduateName.trim()) { toast.error("Please enter graduate name"); return false; }
-      if (!form.course.trim()) { toast.error("Please enter course"); return false; }
+      if (!form.course.trim()) { toast.error("Please enter program"); return false; }
       if (!form.graduationDate) { toast.error("Please select graduation date"); return false; }
       if (!form.phone.trim()) { toast.error("Please enter phone number"); return false; }
       if (!form.email.trim() || !form.email.includes("@")) { toast.error("Please enter a valid email"); return false; }
@@ -301,14 +301,14 @@ export default function BookingWizard() {
                       data-testid="input-graduate-name" />
                   </div>
                   <div>
-                    <Label htmlFor="course" className="inline-block mb-1.5 text-sm font-medium">Course *</Label>
+                    <Label htmlFor="course" className="inline-block mb-1.5 text-sm font-medium">Program *</Label>
                     <Input id="course" placeholder="e.g. BSc Computer Science" value={form.course}
                       onChange={e => setForm(p => ({ ...p, course: e.target.value }))}
                       className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="input-course" />
                   </div>
                   <div>
-                    <Label className="inline-block mb-1.5 text-sm font-medium">Date of Graduation *</Label>
+                    <Label className="inline-block mb-1.5 text-sm font-medium">Graduation Date *</Label>
                     <Select value={form.graduationDate} onValueChange={v => setForm(p => ({ ...p, graduationDate: v }))}>
                       <SelectTrigger className="h-11 md:h-9 text-base md:text-sm w-full" data-testid="graduation-date-picker">
                         <SelectValue placeholder="Select graduation date" />
@@ -321,14 +321,14 @@ export default function BookingWizard() {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor="phone" className="inline-block mb-1.5 text-sm font-medium">Phone / WhatsApp Number *</Label>
+                    <Label htmlFor="phone" className="inline-block mb-1.5 text-sm font-medium">Phone Number / WhatsApp Number *</Label>
                     <Input id="phone" placeholder="+233 XX XXX XXXX" value={form.phone}
                       onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                       className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="input-phone" />
                   </div>
                   <div>
-                    <Label htmlFor="email" className="inline-block mb-1.5 text-sm font-medium">Official Gmail Account *</Label>
+                    <Label htmlFor="email" className="inline-block mb-1.5 text-sm font-medium">Email *</Label>
                     <Input id="email" type="email" placeholder="your.name@gmail.com" value={form.email}
                       onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
                       className="h-11 md:h-9 text-base md:text-sm"
@@ -343,7 +343,6 @@ export default function BookingWizard() {
               <Card data-testid="booking-step-card">
                 <CardHeader>
                   <CardTitle className="font-display text-xl">Number of Guests</CardTitle>
-                  <p className="text-sm text-muted-foreground">How many people will be attending?</p>
                 </CardHeader>
                 <CardContent>
                   <RadioGroup value={attendeesOption} onValueChange={setAttendeesOption} data-testid="attendees-radio">
@@ -354,8 +353,8 @@ export default function BookingWizard() {
                         }`}>
                           <RadioGroupItem value={val} />
                           <div>
-                            <span className="font-semibold text-sm sm:text-base">{val} People</span>
-                            <p className="text-xs text-muted-foreground mt-0.5">Event fee: GHC {(eventFee * parseInt(val)).toFixed(2)}</p>
+                            <span className="font-semibold text-sm sm:text-base">{val} Guests</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">Reservation Fee: GHC {(eventFee * parseInt(val)).toFixed(2)}</p>
                           </div>
                         </label>
                       ))}
@@ -395,13 +394,13 @@ export default function BookingWizard() {
                 <Card data-testid="booking-step-card">
                   <CardHeader>
                     <CardTitle className="font-display text-xl">Catering Options</CardTitle>
-                    <p className="text-sm text-muted-foreground">Would you like food to be taken care of?</p>
+                    <p className="text-sm text-muted-foreground">Let KaDel handle your refreshment stress free.</p>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between p-4 rounded-xl border border-border bg-card shadow-sm">
                       <div className="pr-3">
                         <span className="font-semibold text-sm sm:text-base">Add food, drinks & pastries</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">Select items for your celebration</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Tap the button to select.</p>
                       </div>
                       <Switch
                         checked={wantsFood}
@@ -445,7 +444,7 @@ export default function BookingWizard() {
               <Card data-testid="booking-step-card">
                 <CardHeader>
                   <CardTitle className="font-display text-xl">Review & Pay</CardTitle>
-                  <p className="text-sm text-muted-foreground">Confirm your booking details</p>
+                  <p className="text-sm text-muted-foreground">Confirm your reservation details.</p>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Personal Info Summary */}
@@ -454,11 +453,11 @@ export default function BookingWizard() {
                     <div className="flex flex-col gap-2.5">
                       {[
                         { label: "Name", value: form.graduateName },
-                        { label: "Course", value: form.course },
-                        { label: "Graduation", value: form.graduationDate },
+                        { label: "Program", value: form.course },
+                        { label: "Graduation Date", value: form.graduationDate },
                         { label: "Phone", value: form.phone },
                         { label: "Email", value: form.email },
-                        { label: "Guests", value: `${attendeesCount} people` },
+                        { label: "Guests", value: `${attendeesCount} guests` },
                       ].map((item, idx) => (
                         <div key={idx} className="flex flex-col sm:flex-row sm:justify-between sm:items-center py-1.5 border-b border-border/40 last:border-0 text-sm gap-0.5 sm:gap-2">
                           <span className="text-muted-foreground font-medium shrink-0">{item.label}</span>
@@ -477,7 +476,7 @@ export default function BookingWizard() {
                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Cost Breakdown</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Event Fee ({attendeesCount} guests x GHC {eventFee.toFixed(2)})</span>
+                        <span className="text-muted-foreground">Table Reservation Fee ({attendeesCount} guests x GHC {eventFee.toFixed(2)})</span>
                         <span className="font-semibold text-foreground">GHC {baseCost.toFixed(2)}</span>
                       </div>
                       {wantsFood && selectionsList.length > 0 && (

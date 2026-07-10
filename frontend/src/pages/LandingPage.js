@@ -2,14 +2,14 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone } from "lucide-react";
+import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2 } from "lucide-react";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
 
 const steps = [
   { icon: Users, title: "Register", desc: "Fill in your details and select your graduation date" },
-  { icon: Utensils, title: "Choose Menu", desc: "Pick food, drinks & pastries for your celebration" },
-  { icon: CreditCard, title: "Pay Securely", desc: "Complete payment via Paystack and get your reservation code" },
+  { icon: Table2, title: "Reserve Table", desc: "Select number of guests and secure your table" },
+  { icon: Utensils, title: "Catering Service", desc: "Select preferred dishes, drinks & pastries for your celebration" },
 ];
 
 export default function LandingPage() {
@@ -26,7 +26,7 @@ export default function LandingPage() {
           </div>
           <div className="flex items-center gap-3">
             <Button size="sm" onClick={() => navigate('/book')} data-testid="nav-book-now">
-              Book Now <ArrowRight className="ml-1 h-4 w-4" />
+              Reserve Now <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -48,12 +48,12 @@ export default function LandingPage() {
                 in Style
               </h1>
               <p className="mt-5 text-base md:text-lg text-muted-foreground max-w-lg">
-                Book your graduation event table, choose your menu, and pay securely.
+                Reserve a Table with Us. Choose your menu, and pay securely.
                 Everything you need for a memorable celebration.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Button size="lg" className="rounded-xl text-base px-8" onClick={() => navigate('/book')} data-testid="hero-book-now">
-                  Book Your Event <ArrowRight className="ml-2 h-5 w-5" />
+                  Reserve a Table <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
                 <Button size="lg" variant="secondary" className="rounded-xl text-base px-6" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>
                   How It Works
@@ -80,7 +80,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
             <h2 className="font-display text-2xl sm:text-3xl font-semibold">How It Works</h2>
-            <p className="mt-2 text-muted-foreground">Book your graduation event in 3 simple steps</p>
+            <p className="mt-2 text-muted-foreground">Reserve a table with us in 3 simple steps.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-6">
             {steps.map((s, i) => (
@@ -134,9 +134,9 @@ export default function LandingPage() {
       <section className="py-16 sm:py-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
           <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Ready to Celebrate?</h2>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto">Don't miss out on securing your spot. Book your graduation event table today!</p>
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto">Don't miss out on securing your spot. Reserve a table with us today!</p>
           <Button size="lg" className="rounded-xl text-base px-10" onClick={() => navigate('/book')} data-testid="cta-book-now">
-            Start Booking <ArrowRight className="ml-2 h-5 w-5" />
+            Reserve a Table with Us. <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </section>

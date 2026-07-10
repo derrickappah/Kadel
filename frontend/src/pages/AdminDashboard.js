@@ -405,7 +405,7 @@ export default function AdminDashboard() {
                         <TableRow>
                           <TableHead>Code</TableHead>
                           <TableHead>Graduate</TableHead>
-                          <TableHead>Course</TableHead>
+                          <TableHead>Program</TableHead>
                           <TableHead>Date</TableHead>
                           <TableHead>Guests</TableHead>
                           <TableHead>Food</TableHead>
@@ -468,7 +468,7 @@ export default function AdminDashboard() {
                           {statusBadge(b.status)}
                         </div>
                         <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-muted-foreground pt-2 border-t border-border/40">
-                          <span className="truncate">Course: <span className="font-semibold text-foreground break-all">{b.course}</span></span>
+                          <span className="truncate">Program: <span className="font-semibold text-foreground break-all">{b.course}</span></span>
                           <span className="truncate">Date: <span className="font-semibold text-foreground">{b.graduation_date}</span></span>
                           <span>Guests: <span className="font-semibold text-foreground">{b.attendees_count}</span></span>
                           <span>Food Selection: <span className="font-semibold text-foreground">{b.wants_food ? "Yes" : "No"}</span></span>
@@ -703,14 +703,14 @@ export default function AdminDashboard() {
           {/* SETTINGS */}
           {activeTab === "settings" && (
             <div className="space-y-4">
-              <h2 className="font-display text-2xl font-semibold">Event Settings</h2>
+              <h2 className="font-display text-2xl font-semibold">Reservation Settings</h2>
               <Card className="border-border/80 shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-base font-semibold text-foreground">Pricing</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="inline-block mb-1.5 text-sm font-medium">Event Fee Per Person (GHC)</Label>
+                    <Label className="inline-block mb-1.5 text-sm font-medium">Reservation Fee Per Person (GHC)</Label>
                     <Input
                       type="number"
                       value={settings.event_fee_per_person || ""}
@@ -718,7 +718,7 @@ export default function AdminDashboard() {
                       className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="settings-event-fee"
                     />
-                    <p className="text-xs text-muted-foreground mt-1.5">This is the base event fee charged per attendee</p>
+                    <p className="text-xs text-muted-foreground mt-1.5">This is the base reservation fee charged per guest</p>
                   </div>
                   <Button onClick={saveSettings} className="rounded-xl h-10 px-5 font-semibold bg-primary hover:bg-primary/95 text-primary-foreground">Save Settings</Button>
                 </CardContent>
