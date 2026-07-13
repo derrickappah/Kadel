@@ -122,11 +122,22 @@ async def send_confirmation_email(booking):
     resend_key = os.environ.get('RESEND_API_KEY', '')
     resend_from = os.environ.get('RESEND_FROM_EMAIL', 'reservations@kadelgh.com')
     
+    if resend_from:
+        resend_from = resend_from.strip().strip('\'"')
+        
     if not resend_from:
         resend_from = "reservations@kadelgh.com"
 
-    # Make sure we format the from name nicely if it doesn't have one
-    if not ("<" in resend_from):
+    # Handle standard parsing cleanups to format clean 'Name <email>' strings
+    if "<" in resend_from and ">" in resend_from:
+        parts = resend_from.split("<")
+        name = parts[0].strip().strip('\'"')
+        email = parts[1].replace(">", "").strip().strip('\'"')
+        if name:
+            resend_from = f"{name} <{email}>"
+        else:
+            resend_from = email
+    elif "@" in resend_from and "<" not in resend_from:
         resend_from = f"KaDel Ghana <{resend_from}>"
 
     graduate_name = booking.get('graduate_name', 'Graduate')
