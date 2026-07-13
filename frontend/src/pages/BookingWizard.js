@@ -245,11 +245,12 @@ export default function BookingWizard() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top Bar */}
-      <div className="sticky top-0 z-30 backdrop-blur bg-background/85 border-b border-border/80 shadow-sm" data-testid="booking-stepper">
-        <div className="max-w-2xl mx-auto px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between mb-2">
+    <div className="min-h-screen bg-background py-8 sm:py-12">
+      {/* Content */}
+      <div className="max-w-2xl mx-auto px-4 pb-32">
+        {/* Step indicators inside the form content area */}
+        <div className="mb-6 space-y-4" data-testid="booking-stepper">
+          <div className="flex items-center justify-between">
             <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
               <span className="font-display font-semibold text-base tracking-wide text-foreground">KaDel</span>
             </button>
@@ -284,10 +285,7 @@ export default function BookingWizard() {
             })}
           </div>
         </div>
-      </div>
 
-      {/* Content */}
-      <div className="max-w-2xl mx-auto px-4 py-6 pb-32">
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
