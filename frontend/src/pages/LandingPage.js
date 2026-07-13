@@ -155,7 +155,7 @@ export default function LandingPage() {
                 <span className="font-display text-xl font-bold tracking-wide text-primary">KaDel Ghana</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
-                Elevate your graduation celebration. Secure premium tables, gourmet catering, and seamless guest experiences for a memorable milestone.
+                Reserve your table and select your preferred food and drinks to celebrate your graduation in style.
               </p>
             </div>
 
