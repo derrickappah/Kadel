@@ -128,6 +128,10 @@ async def send_confirmation_email(booking):
     if not resend_from:
         resend_from = "reservations@kadelgh.com"
 
+    # If it is a bare domain (no @ sign), prepend reservations@
+    if "@" not in resend_from:
+        resend_from = f"reservations@{resend_from}"
+
     # Handle standard parsing cleanups to format clean 'Name <email>' strings
     if "<" in resend_from and ">" in resend_from:
         parts = resend_from.split("<")
