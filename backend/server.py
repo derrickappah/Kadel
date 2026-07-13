@@ -520,6 +520,7 @@ async def test_complete_payment(booking_id: str):
     
     res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
     updated = res_updated.data[0] if res_updated.data else None
+    await send_confirmation_email(updated)
     return {"status": "success", "booking": serialize_doc(updated)}
 
 @api_router.post("/paystack/webhook")
