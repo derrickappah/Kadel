@@ -118,33 +118,177 @@ async def adjust_product_stock(product_id: str, amount: int):
         await supabase.table("products").update({"stock": current + amount}).eq("id", product_id).execute()
 
 async def send_confirmation_email(booking):
-    """Send email confirmation - requires SMTP config in .env"""
+    """Send email confirmation using Resend API, falling back to SMTP if configured"""
+    resend_key = os.environ.get('RESEND_API_KEY', '')
+    resend_from = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+    
+    if not resend_from:
+        resend_from = "onboarding@resend.dev"
+
+    # Make sure we format the from name nicely if it is onboarding
+    if "onboarding@resend.dev" in resend_from and not ("<" in resend_from):
+        resend_from = f"KaDel Ghana <{resend_from}>"
+
+    graduate_name = booking.get('graduate_name', 'Graduate')
+    reservation_code = booking.get('reservation_code', 'N/A')
+    table_number = booking.get('table_number')
+    program = booking.get('course', 'Graduation Program')
+    graduation_date = booking.get('graduation_date', 'N/A')
+    attendees_count = booking.get('attendees_count', 0)
+    total_amount = booking.get('total_amount', 0.0)
+    
+    table_val = f'<span class="table-badge">{table_number}</span>' if table_number else '<em>Pending Assignment</em>'
+    table_val_plain = table_number if table_number else 'Pending Assignment'
+    
+    html_content = f"""<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9f9fa; color: #1f2937; margin: 0; padding: 0; }}
+    .container {{ max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }}
+    .header {{ background: linear-gradient(135deg, #FF9900 0%, #D4AF37 100%); padding: 30px; text-align: center; color: white; }}
+    .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }}
+    .kente-bar {{ height: 6px; background: linear-gradient(to right, #009933 25%, #FFCC00 25%, #FFCC00 50%, #FF3300 50%, #FF3300 75%, #000000 75%); }}
+    .content {{ padding: 30px; }}
+    .greeting {{ font-size: 18px; font-weight: 600; margin-bottom: 10px; color: #111827; }}
+    .text {{ font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 25px; }}
+    .card {{ background: #f3f4f6; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 1px solid #e5e7eb; }}
+    .card-title {{ font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }}
+    .detail-row {{ display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }}
+    .detail-row:last-child {{ margin-bottom: 0; }}
+    .detail-label {{ color: #6b7280; font-weight: 500; }}
+    .detail-value {{ color: #111827; font-weight: 600; text-align: right; }}
+    .code-badge {{ background: #FF9900; color: white; padding: 4px 8px; border-radius: 6px; font-family: monospace; font-size: 14px; font-weight: 700; }}
+    .table-badge {{ background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-family: monospace; font-size: 14px; font-weight: 700; }}
+    .footer {{ background: #f9f9fa; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }}
+    .footer p {{ margin: 5px 0 0 0; }}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Reservation Confirmed!</h1>
+    </div>
+    <div class="kente-bar"></div>
+    <div class="content">
+      <div class="greeting">Congratulations, {graduate_name}!</div>
+      <p class="text">
+        Your table reservation for the graduation event has been successfully confirmed.
+        Please review your details below and keep your reservation code handy.
+      </p>
+      
+      <div class="card">
+        <div class="card-title">Reservation Details</div>
+        <div class="detail-row">
+          <span class="detail-label">Reservation Code</span>
+          <span class="detail-value"><span class="code-badge">{reservation_code}</span></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Table Number</span>
+          <span class="detail-value">{table_val}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Program</span>
+          <span class="detail-value">{program}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Graduation Date</span>
+          <span class="detail-value">{graduation_date}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Guests</span>
+          <span class="detail-value">{attendees_count} guests</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Amount Paid</span>
+          <span class="detail-value" style="color: #FF9900; font-size: 16px;">GHC {total_amount:.2f}</span>
+        </div>
+      </div>
+      
+      <p class="text" style="margin-bottom: 0;">
+        We look forward to hosting you and your guests for a memorable celebration! If you have any questions, feel free to reply to this email or contact our support.
+      </p>
+    </div>
+    <div class="footer">
+      <strong>KaDel Ghana</strong>
+      <p>Graduation Event Table Reservation System</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    plain_content = f"""Dear {graduate_name},
+
+Your graduation table reservation has been confirmed!
+
+Reservation Code: {reservation_code}
+Table Number: {table_val_plain}
+Program: {program}
+Graduation Date: {graduation_date}
+Guests: {attendees_count}
+Total Paid: GHC {total_amount:.2f}
+
+Please save your reservation code for check-in.
+
+Congratulations on your graduation!
+
+- KaDel Ghana"""
+
+    if resend_key:
+        try:
+            async with httpx.AsyncClient() as http_client:
+                headers = {
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "from": resend_from,
+                    "to": [booking['email']],
+                    "subject": f"Graduation Reservation Confirmed - {reservation_code}",
+                    "html": html_content,
+                    "text": plain_content
+                }
+                res = await http_client.post("https://api.resend.com/emails", json=payload, headers=headers)
+                if res.status_code in [200, 201]:
+                    logger.info(f"Confirmation email sent via Resend to {booking['email']}")
+                    return True
+                else:
+                    logger.error(f"Resend email failed (Status {res.status_code}): {res.text}")
+        except Exception as e:
+            logger.error(f"Error sending email via Resend: {e}")
+
+    # SMTP Fallback
     smtp_host = os.environ.get('SMTP_HOST', '')
     smtp_user = os.environ.get('SMTP_USER', '')
     smtp_pass = os.environ.get('SMTP_PASS', '')
+    
     if not smtp_host or not smtp_user:
-        logger.info(f"Email not configured. Confirmation for {booking.get('reservation_code')} logged only.")
+        logger.info(f"Email service not configured. Confirmation for {reservation_code} logged only.")
         return False
+        
     try:
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
-        msg = MIMEMultipart()
+        
+        msg = MIMEMultipart('alternative')
         msg['From'] = smtp_user
         msg['To'] = booking['email']
-        msg['Subject'] = f"Graduation Booking Confirmed - {booking['reservation_code']}"
-        body = f"""Dear {booking['graduate_name']},\n\nYour graduation event booking has been confirmed!\n\nReservation Code: {booking['reservation_code']}\nTable Number: {booking.get('table_number', 'Pending')}\nGuests: {booking['attendees_count']}\nTotal Paid: GHC {booking['total_amount']:.2f}\n\nPlease save your reservation code for check-in.\n\nCongratulations on your graduation!\n\n- KaDel Ghana"""
-        msg.attach(MIMEText(body, 'plain'))
+        msg['Subject'] = f"Graduation Reservation Confirmed - {reservation_code}"
+        
+        msg.attach(MIMEText(plain_content, 'plain'))
+        msg.attach(MIMEText(html_content, 'html'))
+        
         smtp_port = int(os.environ.get('SMTP_PORT', 587))
         server = smtplib.SMTP(smtp_host, smtp_port)
         server.starttls()
         server.login(smtp_user, smtp_pass)
         server.send_message(msg)
         server.quit()
-        logger.info(f"Confirmation email sent to {booking['email']}")
+        logger.info(f"Confirmation email sent via SMTP fallback to {booking['email']}")
         return True
     except Exception as e:
-        logger.error(f"Email send failed: {e}")
+        logger.error(f"SMTP Fallback email send failed: {e}")
         return False
 
 # ==================== STARTUP & MIDDLEWARE ====================
