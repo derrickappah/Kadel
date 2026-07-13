@@ -37,45 +37,57 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="hero-gradient relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
-          <div className="grid lg:grid-cols-2 gap-10 items-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="kente-bar w-20 mb-6" />
-              <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-tight">
-                Celebrate Your
-                <span className="block text-primary">Graduation</span>
-                in Style
-              </h1>
-              <p className="mt-5 text-base md:text-lg text-muted-foreground max-w-lg">
-                Reserve a Table with Us. Choose your menu, and pay securely.
-                Everything you need for a memorable celebration.
-              </p>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Button size="lg" className="rounded-xl text-base px-8" onClick={() => navigate('/book')} data-testid="hero-book-now">
-                  Reserve a Table <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button size="lg" variant="secondary" className="rounded-xl text-base px-6" onClick={() => navigate('/track')} data-testid="hero-track-table">
-                  Track Table
-                </Button>
+      <section 
+        className="relative bg-cover bg-center bg-no-repeat py-28 sm:py-36 lg:py-48 flex items-center justify-center"
+        style={{ backgroundImage: `url(${HERO_IMG})` }}
+      >
+        {/* Dark overlay for contrast */}
+        <div className="absolute inset-0 bg-black/60" />
+
+        <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 text-center text-white">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="space-y-6"
+          >
+            {/* Ghana Kente Accent Bar Centered */}
+            <div className="flex justify-center mb-6">
+              <div className="flex gap-0.5 h-1.5 w-24 rounded-full overflow-hidden shadow-sm">
+                <div className="bg-[#009933] flex-1" />
+                <div className="bg-[#FFCC00] flex-1" />
+                <div className="bg-[#FF3300] flex-1" />
               </div>
-            </motion.div>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="hidden lg:block"
-            >
-              <div className="relative rounded-2xl overflow-hidden shadow-xl">
-                <img src={HERO_IMG} alt="Graduation celebration" className="w-full h-80 object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-              </div>
-            </motion.div>
-          </div>
+            </div>
+
+            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">
+              Celebrate Your Graduation in Style
+            </h1>
+            
+            <p className="text-base sm:text-lg md:text-xl text-zinc-200 max-w-xl mx-auto leading-relaxed font-light">
+              Reserve a Table with Us. Choose your menu, and pay securely. Everything you need for a memorable celebration.
+            </p>
+
+            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
+              <Button 
+                size="lg" 
+                className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 active:scale-98 transition-all"
+                onClick={() => navigate('/book')} 
+                data-testid="hero-book-now"
+              >
+                Reserve a Table <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline" 
+                className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/25 backdrop-blur-sm font-semibold active:scale-98 transition-all"
+                onClick={() => navigate('/track')} 
+                data-testid="hero-track-table"
+              >
+                Track Table
+              </Button>
+            </div>
+          </motion.div>
         </div>
       </section>
 
