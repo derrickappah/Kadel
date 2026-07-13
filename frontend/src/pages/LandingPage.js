@@ -26,9 +26,6 @@ export default function LandingPage() {
             <span className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-0.5 rounded-full">Ghana</span>
           </div>
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/track')} data-testid="nav-track">
-              Track Table
-            </Button>
             <Button size="sm" onClick={() => navigate('/book')} data-testid="nav-book-now">
               Reserve Now <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
