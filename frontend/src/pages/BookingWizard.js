@@ -251,16 +251,19 @@ export default function BookingWizard() {
         {/* Redesigned Steps Indicator */}
         <div className="mb-10 relative" data-testid="booking-stepper">
           <div className="relative flex items-center justify-between">
-            {/* Background connecting line */}
-            <div className="absolute left-0 right-0 top-5 -translate-y-1/2 h-0.5 bg-muted -z-10" />
+            {/* Background connecting line starting/ending at bubble centers */}
+            <div className="absolute left-5 right-5 top-5 -translate-y-1/2 h-0.5 bg-muted -z-10" />
             
             {/* Active progress connecting line */}
-            <div 
-              className="absolute left-0 top-5 -translate-y-1/2 h-0.5 bg-primary -z-10 transition-all duration-500"
-              style={{ width: `${(step / 3) * 100}%` }}
-            />
+            <div className="absolute left-5 right-5 top-5 -translate-y-1/2 h-0.5 -z-10">
+              <div 
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${(step / 3) * 100}%` }}
+              />
+            </div>
 
             {STEP_LABELS.map((s, i) => {
+              const Icon = s.icon;
               const isActive = i === step;
               const isCompleted = i < step;
               
@@ -280,7 +283,7 @@ export default function BookingWizard() {
                     {isCompleted ? (
                       <CheckCircle className="h-5 w-5 shrink-0" />
                     ) : (
-                      <span className="text-sm font-bold">{i + 1}</span>
+                      <Icon className="h-4.5 w-4.5 shrink-0" />
                     )}
                   </div>
 
