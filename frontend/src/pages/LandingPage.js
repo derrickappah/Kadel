@@ -152,7 +152,7 @@ export default function LandingPage() {
             {/* Brand Section */}
             <div className="md:col-span-2 space-y-4">
               <div className="flex items-center gap-2">
-                <span className="font-display text-xl font-bold tracking-wide text-primary">KaDel Ghana</span>
+                <span className="font-display text-xl font-bold tracking-wide text-primary">KaDel</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
                 Reserve your table and select your preferred food and drinks to celebrate your graduation in style.
