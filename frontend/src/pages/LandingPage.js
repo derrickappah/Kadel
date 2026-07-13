@@ -119,23 +119,46 @@ export default function LandingPage() {
       </section>
 
       {/* Trust Section */}
-      <section className="py-14 bg-card border-y border-border">
+      <section className="py-20 bg-background border-t border-border/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="grid sm:grid-cols-3 gap-8 text-center">
-            <div className="flex flex-col items-center gap-2">
-              <Shield className="h-8 w-8 text-primary" />
-              <h4 className="font-semibold">Secure Payments</h4>
-              <p className="text-sm text-muted-foreground">Powered by Paystack - trusted by millions</p>
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="group p-6 bg-card border border-border/80 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-1 flex gap-4 items-start">
+              <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
+                <Shield className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-semibold text-foreground text-base">Secure Payments</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Powered by Paystack - trusted by millions of customers across Africa.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <CheckCircle className="h-8 w-8 text-primary" />
-              <h4 className="font-semibold">Instant Confirmation</h4>
-              <p className="text-sm text-muted-foreground">Get your reservation code immediately after payment</p>
+
+            {/* Feature 2 */}
+            <div className="group p-6 bg-card border border-border/80 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-1 flex gap-4 items-start">
+              <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-semibold text-foreground text-base">Instant Confirmation</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Get your unique reservation code and table details immediately after check-out.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-2">
-              <Phone className="h-8 w-8 text-primary" />
-              <h4 className="font-semibold">WhatsApp Support</h4>
-              <p className="text-sm text-muted-foreground">Reach us anytime for assistance</p>
+
+            {/* Feature 3 */}
+            <div className="group p-6 bg-card border border-border/80 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-1 flex gap-4 items-start">
+              <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
+                <Phone className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-semibold text-foreground text-base">WhatsApp Support</h4>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Have questions? Reach our dedicated support team on WhatsApp at any time.
+                </p>
+              </div>
             </div>
           </div>
         </div>
