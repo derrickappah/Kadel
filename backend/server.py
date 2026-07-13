@@ -152,81 +152,254 @@ async def send_confirmation_email(booking):
     attendees_count = booking.get('attendees_count', 0)
     total_amount = booking.get('total_amount', 0.0)
     
-    table_val = f'<span class="table-badge">{table_number}</span>' if table_number else '<em>Pending Assignment</em>'
+    table_val = table_number if table_number else 'Pending Assignment'
     table_val_plain = table_number if table_number else 'Pending Assignment'
     
+    status_label = booking.get('status', 'confirmed').capitalize()
+    status_bg = "#e6f6ec" if booking.get('status') == 'confirmed' else "#fef3c7"
+    status_color = "#0d8a43" if booking.get('status') == 'confirmed' else "#b45309"
+
+    catering_block = ""
+    selections = booking.get("selections", [])
+    if booking.get("wants_food") and selections:
+        items_html = ""
+        for item in selections:
+            items_html += f"""
+          <div class="catering-item">
+            <span class="catering-item-name">{item.get('product_name', '')}</span>
+            <span class="catering-item-qty">x{item.get('quantity', 0)}</span>
+          </div>"""
+        
+        catering_block = f"""
+        <div class="catering-section">
+          <h4 class="catering-title">Selected Catering</h4>
+          {items_html}
+        </div>"""
+        
     html_content = f"""<!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Reservation is Confirmed</title>
   <style>
-    body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9f9fa; color: #1f2937; margin: 0; padding: 0; }}
-    .container {{ max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }}
-    .header {{ background: linear-gradient(135deg, #FF9900 0%, #D4AF37 100%); padding: 30px; text-align: center; color: white; }}
-    .header h1 {{ margin: 0; font-size: 24px; font-weight: 700; letter-spacing: 0.5px; }}
-    .kente-bar {{ height: 6px; background: linear-gradient(to right, #009933 25%, #FFCC00 25%, #FFCC00 50%, #FF3300 50%, #FF3300 75%, #000000 75%); }}
-    .content {{ padding: 30px; }}
-    .greeting {{ font-size: 18px; font-weight: 600; margin-bottom: 10px; color: #111827; }}
-    .text {{ font-size: 15px; line-height: 1.6; color: #4b5563; margin-bottom: 25px; }}
-    .card {{ background: #f3f4f6; border-radius: 12px; padding: 20px; margin-bottom: 25px; border: 1px solid #e5e7eb; }}
-    .card-title {{ font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; margin-bottom: 15px; border-bottom: 1px solid #e5e7eb; padding-bottom: 5px; }}
-    .detail-row {{ display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 14px; }}
-    .detail-row:last-child {{ margin-bottom: 0; }}
-    .detail-label {{ color: #6b7280; font-weight: 500; }}
-    .detail-value {{ color: #111827; font-weight: 600; text-align: right; }}
-    .code-badge {{ background: #FF9900; color: white; padding: 4px 8px; border-radius: 6px; font-family: monospace; font-size: 14px; font-weight: 700; }}
-    .table-badge {{ background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-family: monospace; font-size: 14px; font-weight: 700; }}
-    .footer {{ background: #f9f9fa; padding: 20px; text-align: center; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }}
-    .footer p {{ margin: 5px 0 0 0; }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #ffffff;
+      color: #1d1d1f;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }}
+    .wrapper {{
+      width: 100%;
+      background-color: #ffffff;
+      padding: 40px 20px;
+    }}
+    .container {{
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #ffffff;
+    }}
+    .header {{
+      padding: 0 0 40px 0;
+      border-bottom: 1px solid #f5f5f7;
+    }}
+    .brand {{
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+      color: #1d1d1f;
+      text-decoration: none;
+    }}
+    .content {{
+      padding: 40px 0;
+    }}
+    .title {{
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      line-height: 1.15;
+      color: #1d1d1f;
+      margin-top: 0;
+      margin-bottom: 24px;
+    }}
+    .greeting {{
+      font-size: 17px;
+      line-height: 1.5;
+      font-weight: 600;
+      color: #1d1d1f;
+      margin-bottom: 12px;
+    }}
+    .lead-text {{
+      font-size: 17px;
+      line-height: 1.5;
+      color: #86868b;
+      margin-bottom: 32px;
+    }}
+    .table-container {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 32px;
+    }}
+    .table-row {{
+      border-bottom: 1px solid #f5f5f7;
+    }}
+    .table-row:last-child {{
+      border-bottom: none;
+    }}
+    .table-label {{
+      padding: 14px 0;
+      font-size: 15px;
+      color: #86868b;
+      font-weight: 400;
+      text-align: left;
+      width: 40%;
+    }}
+    .table-value {{
+      padding: 14px 0;
+      font-size: 15px;
+      color: #1d1d1f;
+      font-weight: 600;
+      text-align: right;
+    }}
+    .reservation-code-wrapper {{
+      background-color: #f5f5f7;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      margin-bottom: 32px;
+    }}
+    .code-label {{
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #86868b;
+      margin-bottom: 8px;
+      display: block;
+    }}
+    .code-value {{
+      font-family: -apple-system, SFMono-Regular, Consolas, monospace;
+      font-size: 36px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #1d1d1f;
+    }}
+    .badge-status {{
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }}
+    .catering-section {{
+      background-color: #ffffff;
+      border: 1px solid #f5f5f7;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 32px;
+    }}
+    .catering-title {{
+      font-size: 14px;
+      font-weight: 700;
+      color: #1d1d1f;
+      margin-top: 0;
+      margin-bottom: 16px;
+      letter-spacing: -0.1px;
+    }}
+    .catering-item {{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f5f5f7;
+    }}
+    .catering-item:last-child {{
+      border-bottom: none;
+      padding-bottom: 0;
+    }}
+    .catering-item-name {{
+      color: #515154;
+    }}
+    .catering-item-qty {{
+      font-weight: 600;
+      color: #1d1d1f;
+    }}
+    .footer {{
+      padding: 40px 0 0 0;
+      border-top: 1px solid #f5f5f7;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #86868b;
+    }}
+    .footer a {{
+      color: #0066cc;
+      text-decoration: none;
+    }}
+    .footer a:hover {{
+      text-decoration: underline;
+    }}
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>Reservation Confirmed!</h1>
-    </div>
-    <div class="kente-bar"></div>
-    <div class="content">
-      <div class="greeting">Congratulations, {graduate_name}!</div>
-      <p class="text">
-        Your table reservation for the graduation event has been successfully confirmed.
-        Please review your details below and keep your reservation code handy.
-      </p>
-      
-      <div class="card">
-        <div class="card-title">Reservation Details</div>
-        <div class="detail-row">
-          <span class="detail-label">Reservation Code</span>
-          <span class="detail-value"><span class="code-badge">{reservation_code}</span></span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Table Number</span>
-          <span class="detail-value">{table_val}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Program</span>
-          <span class="detail-value">{program}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Graduation Date</span>
-          <span class="detail-value">{graduation_date}</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Guests</span>
-          <span class="detail-value">{attendees_count} guests</span>
-        </div>
-        <div class="detail-row">
-          <span class="detail-label">Amount Paid</span>
-          <span class="detail-value" style="color: #FF9900; font-size: 16px;">GHC {total_amount:.2f}</span>
-        </div>
+  <div class="wrapper">
+    <div class="container">
+      <div class="header">
+        <span class="brand">KaDel</span>
       </div>
-      
-      <p class="text" style="margin-bottom: 0;">
-        We look forward to hosting you and your guests for a memorable celebration! If you have any questions, feel free to reply to this email or contact our support.
-      </p>
-    </div>
-    <div class="footer">
-      <strong>KaDel Ghana</strong>
-      <p>Graduation Event Table Reservation System</p>
+      <div class="content">
+        <h2 class="title">Your table is ready.</h2>
+        <div class="greeting">Hi {graduate_name},</div>
+        <p class="lead-text">
+          Congratulations on your graduation. Your table reservation for the graduation event has been confirmed. Below you'll find the details for your event.
+        </p>
+
+        <div class="reservation-code-wrapper">
+          <span class="code-label">Reservation Code</span>
+          <span class="code-value">{reservation_code}</span>
+        </div>
+
+        <table class="table-container">
+          <tr class="table-row">
+            <td class="table-label">Table Number</td>
+            <td class="table-value">{table_val}</td>
+          </tr>
+          <tr class="table-row">
+            <td class="table-label">Status</td>
+            <td class="table-value"><span class="badge-status" style="background-color: {status_bg}; color: {status_color};">{status_label}</span></td>
+          </tr>
+          <tr class="table-row">
+            <td class="table-label">Program</td>
+            <td class="table-value">{program}</td>
+          </tr>
+          <tr class="table-row">
+            <td class="table-label">Graduation Date</td>
+            <td class="table-value">{graduation_date}</td>
+          </tr>
+          <tr class="table-row">
+            <td class="table-label">Guests</td>
+            <td class="table-value">{attendees_count} guests</td>
+          </tr>
+          <tr class="table-row">
+            <td class="table-label">Total Amount</td>
+            <td class="table-value">GHC {total_amount:.2f}</td>
+          </tr>
+        </table>
+
+        {catering_block}
+
+        <p class="lead-text" style="margin-bottom: 0;">
+          If you have any questions or need to make changes, please don't hesitate to reach out to us at <a href="mailto:reservations@kadelgh.com" style="color: #0066cc; text-decoration: none;">reservations@kadelgh.com</a>.
+        </p>
+      </div>
+      <div class="footer">
+        <p>This email confirms your reservation details. Please keep your reservation code handy for check-in on the day of the event.</p>
+        <p style="margin-top: 16px;">
+          KaDel Ghana, Accra, Ghana.
+        </p>
+      </div>
     </div>
   </div>
 </body>
