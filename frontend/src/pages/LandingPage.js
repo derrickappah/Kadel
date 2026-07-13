@@ -152,17 +152,11 @@ export default function LandingPage() {
             {/* Brand Section */}
             <div className="md:col-span-2 space-y-4">
               <div className="flex items-center gap-2">
-                <span className="font-display text-xl font-bold tracking-wide bg-gradient-to-r from-primary to-amber-500 bg-clip-text text-transparent">KaDel Ghana</span>
+                <span className="font-display text-xl font-bold tracking-wide text-primary">KaDel Ghana</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
                 Elevate your graduation celebration. Secure premium tables, gourmet catering, and seamless guest experiences for a memorable milestone.
               </p>
-              {/* Ghana flag accent */}
-              <div className="flex gap-1 h-1.5 w-20 rounded-full overflow-hidden">
-                <div className="bg-[#009933] flex-1" />
-                <div className="bg-[#FFCC00] flex-1" />
-                <div className="bg-[#FF3300] flex-1" />
-              </div>
             </div>
 
             {/* Quick Links */}
@@ -187,27 +181,21 @@ export default function LandingPage() {
               </ul>
             </div>
 
-            {/* Support & Admin */}
+            {/* Support */}
             <div className="space-y-4">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Support</h4>
               <ul className="space-y-2.5 text-sm">
                 <li>
                   <a href="mailto:reservations@kadelgh.com" className="text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-2">
-                    <Mail className="h-4 w-4 shrink-0 text-primary/80" />
+                    <Mail className="h-4 w-4 shrink-0 text-primary/70" />
                     reservations@kadelgh.com
                   </a>
                 </li>
                 <li>
                   <a href="https://wa.me/233241234567" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-2">
-                    <Phone className="h-4 w-4 shrink-0 text-emerald-500" />
+                    <Phone className="h-4 w-4 shrink-0 text-primary/70" />
                     WhatsApp Support
                   </a>
-                </li>
-                <li>
-                  <button onClick={() => navigate('/admin')} className="text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 shrink-0 text-blue-500" />
-                    Admin Dashboard
-                  </button>
                 </li>
               </ul>
             </div>
