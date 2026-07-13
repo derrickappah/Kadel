@@ -18,20 +18,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 backdrop-blur bg-background/80 border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-display text-xl font-semibold">KaDel</span>
-            <span className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-0.5 rounded-full">Ghana</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button size="sm" onClick={() => navigate('/book')} data-testid="nav-book-now">
-              Reserve Now <ArrowRight className="ml-1 h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </nav>
+
 
       {/* Hero */}
       <section 
