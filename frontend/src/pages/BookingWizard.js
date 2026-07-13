@@ -248,36 +248,49 @@ export default function BookingWizard() {
     <div className="min-h-screen bg-background py-8 sm:py-12">
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 pb-32">
-        {/* Step indicators inside the form content area */}
-        <div className="mb-6 space-y-4" data-testid="booking-stepper">
-          <div className="flex items-center justify-between">
-            <button onClick={() => navigate('/')} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <span className="font-display font-semibold text-base tracking-wide text-foreground">KaDel</span>
-            </button>
-            <span className="text-xs font-semibold text-muted-foreground" data-testid="booking-stepper-current-step">
-              Step {step + 1} of 4
-            </span>
-          </div>
-          <Progress value={progress} className="h-1.5 transition-all duration-300" />
-          <div className="flex justify-between mt-3 gap-1">
+        {/* Redesigned Steps Indicator */}
+        <div className="mb-10 relative" data-testid="booking-stepper">
+          <div className="relative flex items-center justify-between">
+            {/* Background connecting line */}
+            <div className="absolute left-0 right-0 top-5 -translate-y-1/2 h-0.5 bg-muted -z-10" />
+            
+            {/* Active progress connecting line */}
+            <div 
+              className="absolute left-0 top-5 -translate-y-1/2 h-0.5 bg-primary -z-10 transition-all duration-500"
+              style={{ width: `${(step / 3) * 100}%` }}
+            />
+
             {STEP_LABELS.map((s, i) => {
-              const Icon = s.icon;
               const isActive = i === step;
               const isCompleted = i < step;
+              
               return (
-                <div key={i} className={cn(
-                  "flex items-center gap-1.5 text-xs transition-colors duration-200",
-                  i <= step ? "text-primary font-semibold" : "text-muted-foreground"
-                )}>
-                  {isCompleted ? (
-                    <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                  ) : (
-                    <Icon className={cn("h-4 w-4 shrink-0", isActive && "text-primary animate-pulse")} />
-                  )}
-                  <span className={cn(
-                    "hidden sm:inline",
-                    isActive && "inline text-[11px] sm:text-xs font-bold"
-                  )}>
+                <div key={i} className="flex flex-col items-center gap-2 relative">
+                  {/* Step Bubble */}
+                  <div 
+                    className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 bg-background z-10",
+                      isCompleted 
+                        ? "bg-primary border-primary text-primary-foreground shadow-md shadow-primary/10" 
+                        : isActive 
+                        ? "border-primary text-primary ring-4 ring-primary/10 shadow-sm" 
+                        : "border-muted text-muted-foreground"
+                    )}
+                  >
+                    {isCompleted ? (
+                      <CheckCircle className="h-5 w-5 shrink-0" />
+                    ) : (
+                      <span className="text-sm font-bold">{i + 1}</span>
+                    )}
+                  </div>
+
+                  {/* Label Text */}
+                  <span 
+                    className={cn(
+                      "text-[10px] sm:text-xs font-semibold tracking-wide transition-colors duration-200",
+                      isActive ? "text-primary font-bold" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                    )}
+                  >
                     {s.label}
                   </span>
                 </div>
