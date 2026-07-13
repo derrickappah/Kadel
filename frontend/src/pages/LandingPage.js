@@ -107,11 +107,6 @@ export default function LandingPage() {
                       <Icon className="h-7 w-7" />
                     </div>
 
-                    {/* Step Label */}
-                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary/5 text-primary mb-4">
-                      Step {i + 1}
-                    </div>
-
                     {/* Title & Description */}
                     <h3 className="font-display text-xl font-bold text-foreground mb-3">{s.title}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
