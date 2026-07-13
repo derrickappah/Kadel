@@ -59,8 +59,8 @@ export default function LandingPage() {
                 <Button size="lg" className="rounded-xl text-base px-8" onClick={() => navigate('/book')} data-testid="hero-book-now">
                   Reserve a Table <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Button size="lg" variant="secondary" className="rounded-xl text-base px-6" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>
-                  How It Works
+                <Button size="lg" variant="secondary" className="rounded-xl text-base px-6" onClick={() => navigate('/track')} data-testid="hero-track-table">
+                  Track Table
                 </Button>
               </div>
             </motion.div>
