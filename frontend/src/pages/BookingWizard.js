@@ -531,12 +531,16 @@ export default function BookingWizard() {
       {/* Bottom Sticky Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 border-t bg-background/95 backdrop-blur px-4 pt-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] z-30 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
         <div className="max-w-2xl mx-auto flex items-center justify-between gap-4">
-          <div className="flex flex-col">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Price</span>
-            <span className="text-base sm:text-lg font-extrabold text-primary" data-testid="booking-total-amount-sticky">
-              GHC {totalCost.toFixed(2)}
-            </span>
-          </div>
+          {step < 3 ? (
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total Price</span>
+              <span className="text-base sm:text-lg font-extrabold text-primary" data-testid="booking-total-amount-sticky">
+                GHC {totalCost.toFixed(2)}
+              </span>
+            </div>
+          ) : (
+            <div />
+          )}
           <div className="flex items-center gap-2.5">
             {step > 0 && (
               <Button 
