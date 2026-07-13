@@ -472,6 +472,56 @@ Congratulations on your graduation!
         logger.error(f"SMTP Fallback email send failed: {e}")
         return False
 
+async def send_confirmation_sms(booking):
+    """Send SMS confirmation using Arkesel API"""
+    sms_key = os.environ.get('SMS_API_KEY', '')
+    sms_sender = os.environ.get('SMS_SENDER_ID', 'KaDel')
+
+    if not sms_key:
+        logger.warning("SMS API key not set. SMS notification skipped.")
+        return
+
+    phone = booking.get('phone', '')
+    if not phone:
+        logger.warning(f"No phone number on booking {booking.get('id')}. SMS skipped.")
+        return
+
+    # Clean the phone number (Ghana Arkesel formats)
+    clean_phone = "".join(c for c in phone if c.isdigit())
+    if len(clean_phone) == 10 and clean_phone.startswith("0"):
+        clean_phone = "233" + clean_phone[1:]
+    
+    if not clean_phone:
+        logger.warning(f"Invalid phone number '{phone}' on booking {booking.get('id')}. SMS skipped.")
+        return
+
+    graduate_name = booking.get('graduate_name', 'Graduate')
+    reservation_code = booking.get('reservation_code', 'N/A')
+    graduation_date = booking.get('graduation_date', 'N/A')
+    table_number = booking.get('table_number')
+    table_info = f"Table {table_number}" if table_number else "Pending Assignment"
+
+    message = f"Hello {graduate_name}, your table reservation for {graduation_date} is confirmed! Reservation Code: {reservation_code}. Table: {table_info}. Thank you for booking with KaDel."
+    
+    url = "https://sms.arkesel.com/sms/api"
+    params = {
+        "action": "send-sms",
+        "api_key": sms_key,
+        "to": clean_phone,
+        "from": sms_sender,
+        "sms": message
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.get(url, params=params, timeout=10)
+            if res.status_code == 200:
+                logger.info(f"SMS notification sent successfully to {clean_phone} for booking {reservation_code}.")
+            else:
+                logger.error(f"Failed to send SMS (Status {res.status_code}): {res.text}")
+    except Exception as e:
+        logger.error(f"Error calling SMS API: {str(e)}")
+
 # ==================== STARTUP & MIDDLEWARE ====================
 
 supabase: AsyncClient = None
@@ -659,6 +709,7 @@ async def verify_payment(reference: str):
                 res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
                 updated = res_updated.data[0] if res_updated.data else None
                 await send_confirmation_email(updated)
+                await send_confirmation_sms(updated)
                 return {"status": "success", "booking": serialize_doc(updated)}
         return {"status": "success", "message": "Payment verified"}
 
@@ -703,6 +754,7 @@ async def test_complete_payment(booking_id: str):
     res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
     updated = res_updated.data[0] if res_updated.data else None
     await send_confirmation_email(updated)
+    await send_confirmation_sms(updated)
     return {"status": "success", "booking": serialize_doc(updated)}
 
 @api_router.post("/paystack/webhook")
