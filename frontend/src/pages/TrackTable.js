@@ -11,7 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { 
   Search, Loader2, ArrowLeft, Table2, Calendar, Users, 
-  Mail, Phone, CheckCircle2, Clock, MapPin, Sparkles, GraduationCap 
+  Mail, Phone, CheckCircle2, Clock, MapPin, Sparkles, GraduationCap, Briefcase 
 } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
