@@ -37,11 +37,12 @@ export default function BookingWizard() {
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Data from API
   const [dates, setDates] = useState([]);
   const [products, setProducts] = useState([]);
-  const [eventFee, setEventFee] = useState(50);
+  const [eventFee, setEventFee] = useState(0);
 
   // Form state
   const [form, setForm] = useState({
@@ -65,9 +66,11 @@ export default function BookingWizard() {
         ]);
         setDates(datesRes.data);
         setProducts(productsRes.data);
-        setEventFee(settingsRes.data.event_fee_per_person || 50);
+        setEventFee(settingsRes.data.event_fee_per_person || 0);
       } catch (e) {
         toast.error("Failed to load data. Please refresh.");
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
@@ -230,6 +233,15 @@ export default function BookingWizard() {
       })}
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+        <p className="text-sm text-muted-foreground animate-pulse">Loading reservation details...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

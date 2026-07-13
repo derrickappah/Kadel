@@ -515,13 +515,13 @@ async def get_products(category: Optional[str] = None):
 @api_router.get("/event-settings")
 async def get_event_settings():
     res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
-    return res.data[0] if res.data else {"event_fee_per_person": 50.0}
+    return res.data[0] if res.data else {"event_fee_per_person": 0.0}
 
 @api_router.post("/bookings")
 async def create_booking(booking: BookingCreate):
     res_settings = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
     settings = res_settings.data[0] if res_settings.data else {}
-    event_fee = settings.get("event_fee_per_person", 50.0)
+    event_fee = settings.get("event_fee_per_person", 0.0)
     base_cost = (event_fee / 10.0) * booking.attendees_count
     food_cost = sum(s.subtotal for s in booking.selections)
     total = base_cost + food_cost
