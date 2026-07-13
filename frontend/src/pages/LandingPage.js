@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck } from "lucide-react";
+import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star } from "lucide-react";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
 
@@ -11,6 +11,27 @@ const steps = [
   { icon: Users, title: "Register", desc: "Fill in your details and select your graduation date" },
   { icon: Table2, title: "Reserve Table", desc: "Select number of guests and secure your table" },
   { icon: Utensils, title: "Catering Service", desc: "Select preferred dishes, drinks & pastries for your celebration" },
+];
+
+const testimonials = [
+  {
+    name: "Abena Mensah",
+    program: "BSc. Computer Science, Class of 2025",
+    quote: "Reserving a table was extremely easy, and the catering was incredible. It made my graduation dinner stress-free and truly special for my family.",
+    initials: "AM"
+  },
+  {
+    name: "Kwame Osei",
+    program: "BA. Communication Studies, Class of 2025",
+    quote: "Loved the food and drink selections! Paystack checkout was fast, and tracking my reservation details was seamless. Highly recommend KaDel.",
+    initials: "KO"
+  },
+  {
+    name: "Naa Adjeley",
+    program: "BSc. Business Administration, Class of 2025",
+    quote: "Customer support was amazing when I wanted to add more guests. The table setup was beautiful and my guests had a wonderful time.",
+    initials: "NA"
+  }
 ];
 
 export default function LandingPage() {
@@ -118,48 +139,52 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trust Section */}
-      <section className="py-20 bg-background border-t border-border/50">
+      {/* Testimonials Section */}
+      <section className="py-24 bg-background border-t border-border/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-16 space-y-3">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground">Loved by Graduates</h2>
+            <p className="text-muted-foreground max-w-md mx-auto text-base sm:text-lg">
+              Here is how we helped previous graduates make their milestone celebration memorable.
+            </p>
+          </div>
+
           <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="group p-6 bg-card border border-border/80 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-1 flex gap-4 items-start">
-              <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-semibold text-foreground text-base">Secure Payments</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Powered by Paystack - trusted by millions of customers across Africa.
-                </p>
-              </div>
-            </div>
+            {testimonials.map((t, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.15 }}
+              >
+                <Card className="relative p-8 bg-card border border-border/80 rounded-3xl h-full flex flex-col justify-between hover:shadow-md hover:border-primary/20 transition-all duration-300">
+                  <div className="space-y-4">
+                    {/* Stars */}
+                    <div className="flex gap-1 text-amber-500">
+                      {[...Array(5)].map((_, idx) => (
+                        <Star key={idx} className="h-4 w-4 fill-amber-500" />
+                      ))}
+                    </div>
 
-            {/* Feature 2 */}
-            <div className="group p-6 bg-card border border-border/80 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-1 flex gap-4 items-start">
-              <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
-                <CheckCircle className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-semibold text-foreground text-base">Instant Confirmation</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Get your unique reservation code and table details immediately after check-out.
-                </p>
-              </div>
-            </div>
+                    {/* Quote */}
+                    <p className="text-sm text-muted-foreground italic leading-relaxed">
+                      "{t.quote}"
+                    </p>
+                  </div>
 
-            {/* Feature 3 */}
-            <div className="group p-6 bg-card border border-border/80 rounded-2xl transition-all duration-300 hover:shadow-md hover:-translate-y-1 flex gap-4 items-start">
-              <div className="w-12 h-12 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-all">
-                <Phone className="h-6 w-6" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="font-semibold text-foreground text-base">WhatsApp Support</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Have questions? Reach our dedicated support team on WhatsApp at any time.
-                </p>
-              </div>
-            </div>
+                  <div className="flex items-center gap-3.5 pt-6 mt-6 border-t border-border/60">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-display text-sm font-bold shrink-0">
+                      {t.initials}
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground text-sm leading-tight">{t.name}</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t.program}</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
