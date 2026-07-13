@@ -8,6 +8,9 @@ import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 import TrackTable from "@/pages/TrackTable";
 
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfService from "@/pages/TermsOfService";
+
 function App() {
   return (
     <BrowserRouter>
@@ -16,6 +19,8 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/book" element={<BookingWizard />} />
         <Route path="/track" element={<TrackTable />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
         <Route path="/payment/callback" element={<PaymentCallback />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminDashboard />} />

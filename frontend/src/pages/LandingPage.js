@@ -207,8 +207,8 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} KaDel Ghana. All rights reserved.</p>
             <div className="flex items-center gap-6">
-              <span className="hover:text-foreground cursor-pointer transition-colors">Privacy Policy</span>
-              <span className="hover:text-foreground cursor-pointer transition-colors">Terms of Service</span>
+              <span className="hover:text-foreground cursor-pointer transition-colors" onClick={() => navigate('/privacy')}>Privacy Policy</span>
+              <span className="hover:text-foreground cursor-pointer transition-colors" onClick={() => navigate('/terms')}>Terms of Service</span>
             </div>
           </div>
         </div>
