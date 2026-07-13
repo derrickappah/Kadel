@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star } from "lucide-react";
+import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown } from "lucide-react";
 
 const HERO_IMG = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
 
@@ -43,13 +43,13 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section 
-        className="relative bg-cover bg-center bg-no-repeat py-28 sm:py-36 lg:py-48 flex items-center justify-center"
+        className="relative bg-cover bg-center bg-no-repeat min-h-screen flex flex-col items-center justify-center py-20 px-4 sm:px-6"
         style={{ backgroundImage: `url(${HERO_IMG})` }}
       >
         {/* Dark overlay for contrast */}
         <div className="absolute inset-0 bg-black/60" />
 
-        <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 text-center text-white">
+        <div className="relative z-10 max-w-3xl mx-auto text-center text-white flex-1 flex flex-col items-center justify-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -92,6 +92,20 @@ export default function LandingPage() {
                 Track Table
               </Button>
             </div>
+          </motion.div>
+        </div>
+
+        {/* Scroll Down Indicator */}
+        <div 
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 cursor-pointer text-white/70 hover:text-white transition-colors duration-150" 
+          onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
+        >
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Scroll Down</span>
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+          >
+            <ChevronDown className="h-5 w-5" />
           </motion.div>
         </div>
       </section>
