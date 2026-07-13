@@ -192,7 +192,7 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="py-20 sm:py-24">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="relative overflow-hidden rounded-3xl bg-card border border-border/80 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all duration-300">
+          <div className="relative overflow-hidden rounded-3xl bg-card border border-border/80 p-6 sm:p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all duration-300">
             {/* Soft background glow decoration */}
             <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
@@ -215,14 +215,14 @@ export default function LandingPage() {
                 Don't miss out on securing your spot. Reserve a table with us today and make your milestone celebration unforgettable.
               </p>
 
-              <div className="pt-2">
+              <div className="pt-2 flex justify-center">
                 <Button 
                   size="lg" 
-                  className="rounded-xl text-base px-10 py-6 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-98 transition-all" 
+                  className="w-full sm:w-auto rounded-xl text-sm sm:text-base px-6 sm:px-10 py-5 sm:py-6 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center" 
                   onClick={() => navigate('/book')} 
                   data-testid="cta-book-now"
                 >
-                  Reserve a Table with Us <ArrowRight className="ml-2 h-5 w-5" />
+                  Reserve a Table with Us <ArrowRight className="ml-2 h-5 w-5 shrink-0" />
                 </Button>
               </div>
             </div>
