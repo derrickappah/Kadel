@@ -190,13 +190,43 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 sm:py-20">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 text-center">
-          <h2 className="font-display text-2xl sm:text-3xl font-semibold mb-4">Ready to Celebrate?</h2>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto">Don't miss out on securing your spot. Reserve a table with us today!</p>
-          <Button size="lg" className="rounded-xl text-base px-10" onClick={() => navigate('/book')} data-testid="cta-book-now">
-            Reserve a Table with Us. <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+      <section className="py-20 sm:py-24">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="relative overflow-hidden rounded-3xl bg-card border border-border/80 p-12 md:p-16 text-center shadow-sm hover:shadow-md transition-all duration-300">
+            {/* Soft background glow decoration */}
+            <div className="absolute -top-24 -left-24 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-80 h-80 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+
+            <div className="relative z-10 space-y-6">
+              {/* Ghana Kente Accent Bar Centered */}
+              <div className="flex justify-center mb-6">
+                <div className="flex gap-0.5 h-1 w-16 rounded-full overflow-hidden">
+                  <div className="bg-[#FF3300] flex-1" />
+                  <div className="bg-[#FFCC00] flex-1" />
+                  <div className="bg-[#009933] flex-1" />
+                </div>
+              </div>
+
+              <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+                Ready to Celebrate?
+              </h2>
+              
+              <p className="text-muted-foreground max-w-md mx-auto text-base sm:text-lg leading-relaxed mt-3 mb-8">
+                Don't miss out on securing your spot. Reserve a table with us today and make your milestone celebration unforgettable.
+              </p>
+
+              <div className="pt-2">
+                <Button 
+                  size="lg" 
+                  className="rounded-xl text-base px-10 py-6 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-98 transition-all" 
+                  onClick={() => navigate('/book')} 
+                  data-testid="cta-book-now"
+                >
+                  Reserve a Table with Us <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
