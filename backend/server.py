@@ -159,22 +159,50 @@ async def send_confirmation_email(booking):
     status_bg = "#e6f6ec" if booking.get('status') == 'confirmed' else "#fef3c7"
     status_color = "#0d8a43" if booking.get('status') == 'confirmed' else "#b45309"
 
-    catering_block = ""
+    # Calculate itemized breakdown
+    event_fee = booking.get('event_fee') or (total_amount - booking.get('catering_fee', 0.0))
+    if event_fee < 0:
+        event_fee = 0.0
+    rate_per_guest = (event_fee / attendees_count) if attendees_count > 0 else 0.0
+
     selections = booking.get("selections", [])
+    
+    # HTML cost breakdown rows
+    breakdown_html = f"""
+          <tr class="table-row">
+            <td class="table-label" style="padding: 12px 0; font-size: 15px; color: #86868b; font-weight: 400; text-align: left; width: 60%;">
+              Table Reservation Fee<br>
+              <span style="font-size: 12px; color: #86868b;">{attendees_count} guests @ GHC {rate_per_guest:.2f} / guest</span>
+            </td>
+            <td class="table-value" style="padding: 12px 0; font-size: 15px; color: #1d1d1f; font-weight: 600; text-align: right; vertical-align: top;">GHC {event_fee:.2f}</td>
+          </tr>
+    """
+
+    breakdown_plain = f"  Table Reservation Fee ({attendees_count} guests @ GHC {rate_per_guest:.2f} / guest): GHC {event_fee:.2f}"
+
     if booking.get("wants_food") and selections:
-        items_html = ""
         for item in selections:
-            items_html += f"""
-          <div class="catering-item">
-            <span class="catering-item-name">{item.get('product_name', '')}</span>
-            <span class="catering-item-qty">x{item.get('quantity', 0)}</span>
-          </div>"""
-        
-        catering_block = f"""
-        <div class="catering-section">
-          <h4 class="catering-title">Selected Catering</h4>
-          {items_html}
-        </div>"""
+            name = item.get('product_name', '')
+            qty = item.get('quantity', 0)
+            price = item.get('unit_price', 0.0)
+            sub = item.get('subtotal', 0.0)
+            breakdown_html += f"""
+          <tr class="table-row">
+            <td class="table-label" style="padding: 12px 0; font-size: 15px; color: #86868b; font-weight: 400; text-align: left; width: 60%;">
+              {name}<br>
+              <span style="font-size: 12px; color: #86868b;">Quantity: {qty} @ GHC {price:.2f} each</span>
+            </td>
+            <td class="table-value" style="padding: 12px 0; font-size: 15px; color: #1d1d1f; font-weight: 600; text-align: right; vertical-align: top;">GHC {sub:.2f}</td>
+          </tr>
+            """
+            breakdown_plain += f"\n  {name} (Quantity: {qty} @ GHC {price:.2f} each): GHC {sub:.2f}"
+
+    breakdown_html += f"""
+          <tr class="table-row" style="border-top: 1px solid #1d1d1f; border-bottom: none;">
+            <td class="table-label" style="padding: 16px 0; font-size: 15px; color: #1d1d1f; font-weight: 700; text-align: left;">Total Amount Paid</td>
+            <td class="table-value" style="padding: 16px 0; font-size: 18px; color: #1d1d1f; font-weight: 800; text-align: right;">GHC {total_amount:.2f}</td>
+          </tr>
+    """
         
     html_content = f"""<!DOCTYPE html>
 <html>
@@ -293,40 +321,6 @@ async def send_confirmation_email(booking):
       font-size: 12px;
       font-weight: 600;
     }}
-    .catering-section {{
-      background-color: #ffffff;
-      border: 1px solid #f5f5f7;
-      border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 32px;
-    }}
-    .catering-title {{
-      font-size: 14px;
-      font-weight: 700;
-      color: #1d1d1f;
-      margin-top: 0;
-      margin-bottom: 16px;
-      letter-spacing: -0.1px;
-    }}
-    .catering-item {{
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 14px;
-      padding: 8px 0;
-      border-bottom: 1px solid #f5f5f7;
-    }}
-    .catering-item:last-child {{
-      border-bottom: none;
-      padding-bottom: 0;
-    }}
-    .catering-item-name {{
-      color: #515154;
-    }}
-    .catering-item-qty {{
-      font-weight: 600;
-      color: #1d1d1f;
-    }}
     .footer {{
       padding: 40px 0 0 0;
       border-top: 1px solid #f5f5f7;
@@ -361,7 +355,7 @@ async def send_confirmation_email(booking):
           <span class="code-value">{reservation_code}</span>
         </div>
 
-        <table class="table-container">
+        <table class="table-container" style="margin-bottom: 24px;">
           <tr class="table-row">
             <td class="table-label">Table Number</td>
             <td class="table-value">{table_val}</td>
@@ -378,17 +372,12 @@ async def send_confirmation_email(booking):
             <td class="table-label">Graduation Date</td>
             <td class="table-value">{graduation_date}</td>
           </tr>
-          <tr class="table-row">
-            <td class="table-label">Guests</td>
-            <td class="table-value">{attendees_count} guests</td>
-          </tr>
-          <tr class="table-row">
-            <td class="table-label">Total Amount</td>
-            <td class="table-value">GHC {total_amount:.2f}</td>
-          </tr>
         </table>
 
-        {catering_block}
+        <h4 style="font-size: 11px; font-weight: 700; color: #86868b; margin-top: 24px; margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase;">Cost Breakdown</h4>
+        <table class="table-container">
+          {breakdown_html}
+        </table>
 
         <p class="lead-text" style="margin-bottom: 0;">
           If you have any questions or need to make changes, please don't hesitate to reach out to us at <a href="mailto:reservations@kadelgh.com" style="color: #0066cc; text-decoration: none;">reservations@kadelgh.com</a>.
@@ -409,12 +398,14 @@ async def send_confirmation_email(booking):
 
 Your graduation table reservation has been confirmed!
 
-Reservation Code: {reservation_code}
-Table Number: {table_val_plain}
-Program: {program}
-Graduation Date: {graduation_date}
-Guests: {attendees_count}
-Total Paid: GHC {total_amount:.2f}
+Reservation Details:
+  Reservation Code: {reservation_code}
+  Table Number: {table_val_plain}
+  Program: {program}
+  Graduation Date: {graduation_date}
+
+Cost Breakdown:
+{breakdown_plain}
 
 Please save your reservation code for check-in.
 
