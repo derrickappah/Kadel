@@ -51,9 +51,9 @@ export default function LandingPage() {
             {/* Ghana Kente Accent Bar Centered */}
             <div className="flex justify-center mb-6">
               <div className="flex gap-0.5 h-1.5 w-24 rounded-full overflow-hidden shadow-sm">
-                <div className="bg-[#009933] flex-1" />
-                <div className="bg-[#FFCC00] flex-1" />
                 <div className="bg-[#FF3300] flex-1" />
+                <div className="bg-[#FFCC00] flex-1" />
+                <div className="bg-[#009933] flex-1" />
               </div>
             </div>
 
