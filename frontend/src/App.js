@@ -6,6 +6,7 @@ import BookingWizard from "@/pages/BookingWizard";
 import PaymentCallback from "@/pages/PaymentCallback";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
+import TrackTable from "@/pages/TrackTable";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/book" element={<BookingWizard />} />
+        <Route path="/track" element={<TrackTable />} />
         <Route path="/payment/callback" element={<PaymentCallback />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin" element={<AdminDashboard />} />

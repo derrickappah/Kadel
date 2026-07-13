@@ -25,6 +25,9 @@ export default function LandingPage() {
             <span className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-0.5 rounded-full">Ghana</span>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/track')} data-testid="nav-track">
+              Track Table
+            </Button>
             <Button size="sm" onClick={() => navigate('/book')} data-testid="nav-book-now">
               Reserve Now <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
@@ -148,7 +151,11 @@ export default function LandingPage() {
             <div className="flex items-center gap-2">
               <span className="font-display text-sm font-semibold">KaDel Ghana</span>
             </div>
-            <p className="text-xs text-muted-foreground">Graduation Event Booking System</p>
+            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+              <span className="hover:text-foreground cursor-pointer" onClick={() => navigate('/track')} data-testid="footer-track">Track My Table</span>
+              <span>•</span>
+              <span>Graduation Event Reservation System</span>
+            </div>
           </div>
         </div>
       </footer>
