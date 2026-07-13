@@ -249,13 +249,13 @@ export default function BookingWizard() {
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 pb-32">
         {/* Redesigned Steps Indicator */}
-        <div className="mb-10 relative" data-testid="booking-stepper">
+        <div className="mb-10 relative z-0" data-testid="booking-stepper">
           <div className="relative flex items-center justify-between">
             {/* Background connecting line starting/ending at bubble centers */}
-            <div className="absolute left-5 right-5 top-5 -translate-y-1/2 h-0.5 bg-muted -z-10" />
+            <div className="absolute left-5 right-5 top-5 -translate-y-1/2 h-0.5 bg-muted z-0" />
             
             {/* Active progress connecting line */}
-            <div className="absolute left-5 right-5 top-5 -translate-y-1/2 h-0.5 -z-10">
+            <div className="absolute left-5 right-5 top-5 -translate-y-1/2 h-0.5 z-0">
               <div 
                 className="h-full bg-primary transition-all duration-500"
                 style={{ width: `${(step / 3) * 100}%` }}
