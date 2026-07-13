@@ -710,7 +710,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="inline-block mb-1.5 text-sm font-medium">Reservation Fee Per Person (GHC)</Label>
+                    <Label className="inline-block mb-1.5 text-sm font-medium">Reservation Fee Per 10 Guests (GHC)</Label>
                     <Input
                       type="number"
                       value={settings.event_fee_per_person || ""}
@@ -718,7 +718,7 @@ export default function AdminDashboard() {
                       className="h-11 md:h-9 text-base md:text-sm"
                       data-testid="settings-event-fee"
                     />
-                    <p className="text-xs text-muted-foreground mt-1.5">This is the base reservation fee charged per guest</p>
+                    <p className="text-xs text-muted-foreground mt-1.5">This is the base reservation fee charged per block of 10 guests</p>
                   </div>
                   <Button onClick={saveSettings} className="rounded-xl h-10 px-5 font-semibold bg-primary hover:bg-primary/95 text-primary-foreground">Save Settings</Button>
                 </CardContent>

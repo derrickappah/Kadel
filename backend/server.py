@@ -531,7 +531,7 @@ async def create_booking(booking: BookingCreate):
     res_settings = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
     settings = res_settings.data[0] if res_settings.data else {}
     event_fee = settings.get("event_fee_per_person", 50.0)
-    base_cost = event_fee * booking.attendees_count
+    base_cost = (event_fee / 10.0) * booking.attendees_count
     food_cost = sum(s.subtotal for s in booking.selections)
     total = base_cost + food_cost
 
