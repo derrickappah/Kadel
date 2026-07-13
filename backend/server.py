@@ -120,13 +120,13 @@ async def adjust_product_stock(product_id: str, amount: int):
 async def send_confirmation_email(booking):
     """Send email confirmation using Resend API, falling back to SMTP if configured"""
     resend_key = os.environ.get('RESEND_API_KEY', '')
-    resend_from = os.environ.get('RESEND_FROM_EMAIL', 'onboarding@resend.dev')
+    resend_from = os.environ.get('RESEND_FROM_EMAIL', 'reservations@kadelgh.com')
     
     if not resend_from:
-        resend_from = "onboarding@resend.dev"
+        resend_from = "reservations@kadelgh.com"
 
-    # Make sure we format the from name nicely if it is onboarding
-    if "onboarding@resend.dev" in resend_from and not ("<" in resend_from):
+    # Make sure we format the from name nicely if it doesn't have one
+    if not ("<" in resend_from):
         resend_from = f"KaDel Ghana <{resend_from}>"
 
     graduate_name = booking.get('graduate_name', 'Graduate')
