@@ -163,7 +163,9 @@ async def send_confirmation_email(booking):
     event_fee = booking.get('event_fee') or (total_amount - booking.get('catering_fee', 0.0))
     if event_fee < 0:
         event_fee = 0.0
-    rate_per_guest = (event_fee / attendees_count) if attendees_count > 0 else 0.0
+    
+    charged_guests = ((attendees_count + 9) // 10) * 10 if attendees_count > 0 else 0
+    rate_per_guest = (event_fee / charged_guests) if charged_guests > 0 else 0.0
 
     selections = booking.get("selections", [])
     
@@ -172,13 +174,13 @@ async def send_confirmation_email(booking):
           <tr class="table-row">
             <td class="table-label" style="padding: 12px 0; font-size: 15px; color: #86868b; font-weight: 400; text-align: left; width: 60%;">
               Table Reservation Fee<br>
-              <span style="font-size: 12px; color: #86868b;">{attendees_count} guests @ GHC {rate_per_guest:.2f} / guest</span>
+              <span style="font-size: 12px; color: #86868b;">Charged for {charged_guests} guests @ GHC {rate_per_guest:.2f} / guest</span>
             </td>
             <td class="table-value" style="padding: 12px 0; font-size: 15px; color: #1d1d1f; font-weight: 600; text-align: right; vertical-align: top;">GHC {event_fee:.2f}</td>
           </tr>
     """
 
-    breakdown_plain = f"  Table Reservation Fee ({attendees_count} guests @ GHC {rate_per_guest:.2f} / guest): GHC {event_fee:.2f}"
+    breakdown_plain = f"  Table Reservation Fee (Charged for {charged_guests} guests @ GHC {rate_per_guest:.2f} / guest): GHC {event_fee:.2f}"
 
     if booking.get("wants_food") and selections:
         for item in selections:
@@ -522,7 +524,8 @@ async def create_booking(booking: BookingCreate):
     res_settings = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
     settings = res_settings.data[0] if res_settings.data else {}
     event_fee = settings.get("event_fee_per_person", 0.0)
-    base_cost = (event_fee / 10.0) * booking.attendees_count
+    charged_blocks = (booking.attendees_count + 9) // 10
+    base_cost = charged_blocks * event_fee
     food_cost = sum(s.subtotal for s in booking.selections)
     total = base_cost + food_cost
 

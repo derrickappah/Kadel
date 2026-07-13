@@ -98,7 +98,8 @@ export default function BookingWizard() {
     });
   }, [products]);
 
-  const baseCost = (eventFee / 10) * attendeesCount;
+  const chargedAttendees = Math.ceil(attendeesCount / 10) * 10;
+  const baseCost = Math.ceil(attendeesCount / 10) * eventFee;
   const foodCost = Object.values(selections).reduce((sum, s) => sum + s.product.price * s.quantity, 0);
   const totalCost = baseCost + (wantsFood ? foodCost : 0);
 
@@ -366,7 +367,7 @@ export default function BookingWizard() {
                           <RadioGroupItem value={val} />
                           <div>
                             <span className="font-semibold text-sm sm:text-base">{val} Guests</span>
-                            <p className="text-xs text-muted-foreground mt-0.5">Reservation Fee: GHC {((eventFee / 10) * parseInt(val)).toFixed(2)}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Reservation Fee: GHC {(Math.ceil(parseInt(val) / 10) * eventFee).toFixed(2)}</p>
                           </div>
                         </label>
                       ))}
@@ -488,7 +489,7 @@ export default function BookingWizard() {
                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Cost Breakdown</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Table Reservation Fee ({attendeesCount} guests @ GHC {(eventFee / 10).toFixed(2)} / guest)</span>
+                        <span className="text-muted-foreground">Table Reservation Fee (Charged for {chargedAttendees} guests @ GHC {(eventFee / 10).toFixed(2)} / guest)</span>
                         <span className="font-semibold text-foreground">GHC {baseCost.toFixed(2)}</span>
                       </div>
                       {wantsFood && selectionsList.length > 0 && (
