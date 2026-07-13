@@ -76,33 +76,49 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works */}
-      <section id="how-it-works" className="py-16 sm:py-20">
+      <section id="how-it-works" className="py-24 bg-background">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <h2 className="font-display text-2xl sm:text-3xl font-semibold">How It Works</h2>
-            <p className="mt-2 text-muted-foreground">Reserve a table with us in 3 simple steps.</p>
+          <div className="text-center mb-16 space-y-3">
+            <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-foreground">How It Works</h2>
+            <p className="text-muted-foreground max-w-md mx-auto text-base sm:text-lg">
+              Reserve a table with us in 3 simple steps.
+            </p>
           </div>
-          <div className="grid sm:grid-cols-3 gap-6">
-            {steps.map((s, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-              >
-                <Card className="p-6 text-center h-full hover:shadow-md transition-shadow duration-150">
-                  <div className="mx-auto w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                    <s.icon className="h-7 w-7 text-primary" />
-                  </div>
-                  <div className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary rounded-full px-3 py-1 mb-3">
-                    Step {i + 1}
-                  </div>
-                  <h3 className="font-display text-lg font-semibold mb-2">{s.title}</h3>
-                  <p className="text-sm text-muted-foreground">{s.desc}</p>
-                </Card>
-              </motion.div>
-            ))}
+
+          <div className="grid sm:grid-cols-3 gap-8">
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.15 }}
+                >
+                  <Card className="relative overflow-hidden group p-8 bg-card border border-border/70 hover:border-primary/45 rounded-3xl shadow-sm hover:shadow-lg hover:-translate-y-1.5 transition-all duration-300 h-full flex flex-col items-start text-left">
+                    {/* Step Watermark Number */}
+                    <div className="absolute top-4 right-8 text-7xl font-extrabold text-muted-foreground/5 select-none font-display tracking-tighter">
+                      0{i + 1}
+                    </div>
+
+                    {/* Icon Wrapper */}
+                    <div className="w-14 h-14 rounded-2xl bg-primary/5 text-primary flex items-center justify-center mb-6 group-hover:scale-110 group-hover:bg-primary/10 transition-all duration-300">
+                      <Icon className="h-7 w-7" />
+                    </div>
+
+                    {/* Step Label */}
+                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-primary/5 text-primary mb-4">
+                      Step {i + 1}
+                    </div>
+
+                    {/* Title & Description */}
+                    <h3 className="font-display text-xl font-bold text-foreground mb-3">{s.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{s.desc}</p>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </section>
