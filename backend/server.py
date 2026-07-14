@@ -27,6 +27,14 @@ supabase_key = os.environ.get('SUPABASE_KEY', '')
 # Config
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
 
+# Moolre Config
+MOOLRE_USERNAME = os.environ.get('MOOLRE_USERNAME', '')
+MOOLRE_PUBLIC_KEY = os.environ.get('MOOLRE_PUBLIC_KEY', '')
+MOOLRE_PRIVATE_KEY = os.environ.get('MOOLRE_PRIVATE_KEY', '')
+MOOLRE_ACCOUNT_NUMBER = os.environ.get('MOOLRE_ACCOUNT_NUMBER', '')
+MOOLRE_BUSINESS_EMAIL = os.environ.get('MOOLRE_BUSINESS_EMAIL', 'reservations@kadelgh.com')
+MOOLRE_BASE_URL = 'https://api.moolre.com'
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
@@ -631,95 +639,99 @@ async def initialize_payment(data: PaymentInit):
     booking = res.data[0] if res.data else None
     if not booking:
         raise HTTPException(404, "Booking not found")
-    if not PAYSTACK_SECRET_KEY:
-        raise HTTPException(500, "Paystack not configured. Please add PAYSTACK_SECRET_KEY to backend .env file.")
+    if not MOOLRE_USERNAME or not MOOLRE_ACCOUNT_NUMBER:
+        raise HTTPException(500, "Moolre not configured. Please add Moolre credentials to backend .env file.")
 
-    amount_pesewas = int(booking["total_amount"] * 100)
-    reference = f"GT_{uuid.uuid4().hex[:16]}"
+    external_ref = f"KDL_{uuid.uuid4().hex[:16]}"
+    redirect_url = data.callback_url or f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/payment/callback"
+    callback_url = f"{os.environ.get('BACKEND_URL', 'http://127.0.0.1:8000')}/api/moolre/webhook"
 
     async with httpx.AsyncClient() as http_client:
         response = await http_client.post(
-            "https://api.paystack.co/transaction/initialize",
+            f"{MOOLRE_BASE_URL}/embed/link",
             headers={
-                "Authorization": f"Bearer {PAYSTACK_SECRET_KEY}",
+                "X-API-USER": MOOLRE_USERNAME,
+                "X-API-PUBKEY": MOOLRE_PUBLIC_KEY,
                 "Content-Type": "application/json"
             },
             json={
-                "email": booking["email"],
-                "amount": amount_pesewas,
-                "reference": reference,
-                "callback_url": data.callback_url,
+                "type": 1,
+                "amount": str(booking["total_amount"]),
+                "email": MOOLRE_BUSINESS_EMAIL,
+                "externalref": external_ref,
+                "reusable": "0",
                 "currency": "GHS",
+                "accountnumber": MOOLRE_ACCOUNT_NUMBER,
+                "callback": callback_url,
+                "redirect": f"{redirect_url}?reference={external_ref}",
                 "metadata": {
                     "booking_id": data.booking_id,
                     "reservation_code": booking.get("reservation_code", "")
                 }
-            }
+            },
+            timeout=15
         )
         result = response.json()
+        logger.info(f"Moolre init response: {result}")
 
-    if result.get("status"):
+    if result.get("status") == 1 and result.get("data"):
+        payment_url = result["data"].get("link") or result["data"].get("url") or result["data"].get("payment_link")
+        if not payment_url:
+            # Try to find any URL-like field in data
+            for v in result["data"].values():
+                if isinstance(v, str) and v.startswith("http"):
+                    payment_url = v
+                    break
         payment_doc = {
             "id": str(uuid.uuid4()),
             "booking_id": data.booking_id,
-            "reference": result["data"]["reference"],
+            "reference": external_ref,
             "amount": booking["total_amount"],
             "status": "pending",
             "created_at": datetime.now(timezone.utc).isoformat()
         }
         await supabase.table("payments").insert(payment_doc).execute()
-        await supabase.table("bookings").update({"payment_reference": result["data"]["reference"]}).eq("id", data.booking_id).execute()
+        await supabase.table("bookings").update({"payment_reference": external_ref}).eq("id", data.booking_id).execute()
         return {
-            "authorization_url": result["data"]["authorization_url"],
-            "reference": result["data"]["reference"]
+            "authorization_url": payment_url,
+            "reference": external_ref
         }
     raise HTTPException(400, result.get("message", "Payment initialization failed"))
 
 @api_router.get("/payments/verify/{reference}")
 async def verify_payment(reference: str):
-    if not PAYSTACK_SECRET_KEY:
-        raise HTTPException(500, "Paystack not configured")
-
-    async with httpx.AsyncClient() as http_client:
-        response = await http_client.get(
-            f"https://api.paystack.co/transaction/verify/{reference}",
-            headers={"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
-        )
-        result = response.json()
-
-    if result.get("status") and result["data"]["status"] == "success":
-        await supabase.table("payments").update({
-            "status": "success"
-        }).eq("reference", reference).execute()
-        
-        res_pay = await supabase.table("payments").select("*").eq("reference", reference).execute()
-        payment = res_pay.data[0] if res_pay.data else None
-        if payment:
-            res_book = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
-            booking = res_book.data[0] if res_book.data else None
-            if booking and booking["status"] != "confirmed":
-                for sel in booking.get("selections", []):
-                    await adjust_product_stock(sel["product_id"], -sel["quantity"])
-                table_number = await auto_assign_table()
-                await supabase.table("bookings").update({
-                    "status": "confirmed",
-                    "table_number": table_number
-                }).eq("id", payment["booking_id"]).execute()
-                
-                res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
-                updated = res_updated.data[0] if res_updated.data else None
-                await send_confirmation_email(updated)
-                await send_confirmation_sms(updated)
-                return {"status": "success", "booking": serialize_doc(updated)}
-        return {"status": "success", "message": "Payment verified"}
-
+    """Check DB for a confirmed payment by its Moolre externalref"""
     res_pay = await supabase.table("payments").select("*").eq("reference", reference).execute()
     payment = res_pay.data[0] if res_pay.data else None
+
     if payment and payment.get("status") == "success":
         res_book = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
         booking = res_book.data[0] if res_book.data else None
         return {"status": "success", "booking": serialize_doc(booking)}
-    return {"status": "failed", "message": "Payment verification failed"}
+    return {"status": "pending", "message": "Payment not yet confirmed"}
+
+async def _confirm_payment_by_reference(reference: str):
+    """Shared logic: mark payment success, confirm booking, send notifications."""
+    await supabase.table("payments").update({"status": "success"}).eq("reference", reference).execute()
+    res_pay = await supabase.table("payments").select("*").eq("reference", reference).execute()
+    payment = res_pay.data[0] if res_pay.data else None
+    if payment:
+        res_book = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
+        booking = res_book.data[0] if res_book.data else None
+        if booking and booking["status"] != "confirmed":
+            for sel in booking.get("selections", []):
+                await adjust_product_stock(sel["product_id"], -sel["quantity"])
+            table_number = await auto_assign_table()
+            await supabase.table("bookings").update({
+                "status": "confirmed",
+                "table_number": table_number
+            }).eq("id", payment["booking_id"]).execute()
+            res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
+            updated = res_updated.data[0] if res_updated.data else None
+            await send_confirmation_email(updated)
+            await send_confirmation_sms(updated)
+            return updated
+    return None
 
 @api_router.post("/payments/test-complete/{booking_id}")
 async def test_complete_payment(booking_id: str):
@@ -757,26 +769,26 @@ async def test_complete_payment(booking_id: str):
     await send_confirmation_sms(updated)
     return {"status": "success", "booking": serialize_doc(updated)}
 
-@api_router.post("/paystack/webhook")
-async def paystack_webhook(request: Request):
-    signature = request.headers.get("x-paystack-signature", "")
-    body = await request.body()
-    if PAYSTACK_SECRET_KEY:
-        computed = hmac.new(
-            PAYSTACK_SECRET_KEY.encode('utf-8'),
-            body,
-            hashlib.sha512
-        ).hexdigest()
-        if not hmac.compare_digest(computed, signature):
-            raise HTTPException(401, "Invalid signature")
-    event = json.loads(body)
-    if event.get("event") == "charge.success":
-        ref = event["data"]["reference"]
-        logger.info(f"Webhook: charge.success for {ref}")
+@api_router.post("/moolre/webhook")
+async def moolre_webhook(request: Request):
+    """Handle Moolre payment callback when a payment completes"""
+    try:
+        body = await request.body()
+        event = json.loads(body)
+        logger.info(f"Moolre webhook received: {event}")
+    except Exception:
+        event = {}
+
+    # Moolre sends status=1 on success, with externalref identifying our payment
+    status = event.get("status", 0)
+    external_ref = event.get("externalref") or event.get("reference") or event.get("orderId", "")
+
+    if status == 1 and external_ref:
+        logger.info(f"Moolre webhook: successful payment for ref {external_ref}")
         try:
-            await verify_payment(ref)
+            await _confirm_payment_by_reference(external_ref)
         except Exception as e:
-            logger.error(f"Webhook verify error: {e}")
+            logger.error(f"Moolre webhook confirm error: {e}")
     return {"status": "ok"}
 
 @api_router.get("/bookings/lookup/{reservation_code}")

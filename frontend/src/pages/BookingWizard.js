@@ -169,8 +169,8 @@ export default function BookingWizard() {
         window.location.href = payRes.data.authorization_url;
       } catch (payErr) {
         const errMsg = payErr.response?.data?.detail || "Payment initialization failed";
-        if (errMsg.includes("Paystack not configured")) {
-          toast.error("Paystack not configured. Using test mode...");
+        if (errMsg.includes("Moolre not configured")) {
+          toast.error("Payment gateway not configured. Using test mode...");
           // Use test-complete endpoint
           const testRes = await axios.post(`${API}/payments/test-complete/${bookingId}`);
           if (testRes.data.status === "success") {
