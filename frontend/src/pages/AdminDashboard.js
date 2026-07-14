@@ -224,6 +224,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const bulkClearTables = async () => {
+    if (selectedBookings.length === 0) return;
+    if (!window.confirm(`Clear table assignments for the ${selectedBookings.length} selected bookings?`)) return;
+    try {
+      await Promise.all(
+        selectedBookings.map(id =>
+          axios.post(`${API}/admin/tables/assign`, { booking_id: id, table_number: "" }, authHeaders())
+        )
+      );
+      toast.success("Table assignments cleared");
+      setSelectedBookings([]);
+      fetchAll();
+    } catch {
+      toast.error("Failed to clear some table assignments");
+    }
+  };
+
+  const clearSearch = () => setSearchQuery("");
+
   // Settings
   const saveSettings = async () => {
     try {
@@ -309,6 +328,11 @@ export default function AdminDashboard() {
     };
   }, [bookings, products, settings]);
 
+  const getProductCategory = useCallback((productId, productName) => {
+    const prod = products.find(p => p.id === productId || p.name === productName);
+    return prod ? prod.category : "food";
+  }, [products]);
+
   // Client-Side Booking Filtration & Sorting
   const filteredBookings = useMemo(() => {
     let result = [...bookings];
@@ -358,6 +382,14 @@ export default function AdminDashboard() {
   }, [filteredBookings, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredBookings.length / pageSize) || 1;
+
+  const statusCounts = useMemo(() => {
+    return {
+      all: bookings.length,
+      confirmed: bookings.filter(b => b.status === "confirmed" || b.status === "success" || b.status === "confirmed_bookings").length,
+      pending: bookings.filter(b => b.status === "pending").length,
+    };
+  }, [bookings]);
 
   // Reset pagination on filter search changes
   useEffect(() => {
@@ -947,49 +979,63 @@ export default function AdminDashboard() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -15 }}
                 transition={{ duration: 0.2 }}
-                className="space-y-6"
+                className="space-y-6 animate-in fade-in duration-200"
               >
-                <div>
-                  <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">Reservations Directory</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Review table reservations, look up individual food orders, and assign guest tables.</p>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div>
+                    <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">Reservations Directory</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Review table reservations, inspect custom catering selections, and assign table numbers.</p>
+                  </div>
+                  
+                  {/* Status Quick-filters pills */}
+                  <div className="flex items-center gap-1 bg-secondary/35 p-1 rounded-xl border border-border/50 w-fit shrink-0">
+                    {[
+                      { id: "all", label: "All", count: statusCounts.all },
+                      { id: "confirmed", label: "Confirmed", count: statusCounts.confirmed, color: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-400" },
+                      { id: "pending", label: "Pending", count: statusCounts.pending, color: "text-amber-600 bg-amber-500/10 dark:text-amber-400" }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setStatusFilter(tab.id)}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-150",
+                          statusFilter === tab.id
+                            ? "bg-card text-foreground shadow-xs border border-border/80"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <span>{tab.label}</span>
+                        <span className={cn("px-1.5 py-0.5 rounded-md text-[9px] font-black", tab.color || "bg-secondary text-muted-foreground")}>
+                          {tab.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Search and Filters Toolbar */}
+                {/* Search and Action Toolbar */}
                 <Card className="border-border/80 shadow-md bg-card">
-                  <CardContent className="p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                    <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1">
-                      {/* Search Bar */}
-                      <div className="relative flex-1 max-w-md">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search code, name, or program..."
-                          value={searchQuery}
-                          onChange={e => setSearchQuery(e.target.value)}
-                          className="h-10 pl-9 rounded-xl border-border/80 text-sm focus:ring-1 focus:ring-primary/20"
-                        />
-                      </div>
-
-                      {/* Status Dropdown */}
-                      <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="h-10 w-full sm:w-[150px] rounded-xl border-border/80 text-sm">
-                          <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
-                          <SelectValue placeholder="All Status" />
-                        </SelectTrigger>
-                        <SelectContent className="rounded-xl">
-                          <SelectItem value="all">All Status</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                        </SelectContent>
-                      </Select>
+                  <CardContent className="p-4 flex flex-col sm:flex-row gap-4 items-center justify-between">
+                    {/* Search Bar */}
+                    <div className="relative flex-1 max-w-md w-full">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search code, graduate name, or course..."
+                        value={searchQuery}
+                        onChange={e => setSearchQuery(e.target.value)}
+                        className="h-10 pl-9 pr-9 rounded-xl border-border/80 text-sm focus:ring-1 focus:ring-primary/20 w-full"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={clearSearch}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 w-full md:w-auto shrink-0 justify-end">
-                      {selectedBookings.length > 0 && (
-                        <Badge variant="secondary" className="px-3 py-1 font-bold rounded-lg text-xs mr-2">
-                          {selectedBookings.length} Selected
-                        </Badge>
-                      )}
-
+                    <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
                       <Button
                         variant="outline"
                         size="sm"
@@ -997,20 +1043,20 @@ export default function AdminDashboard() {
                         className="h-10 rounded-xl border-border/80 text-xs font-bold flex items-center gap-2 bg-card hover:bg-secondary"
                       >
                         <Download className="h-4 w-4 text-muted-foreground" />
-                        {selectedBookings.length > 0 ? "Export Selected" : "Export All CSV"}
+                        Export All CSV
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Bookings Card Container */}
+                {/* Bookings Table/Cards Container */}
                 <Card className="border-border/80 shadow-md bg-card overflow-hidden rounded-2xl">
                   <CardContent className="p-0">
                     {/* Desktop View */}
                     <div className="hidden md:block">
                       <Table data-testid="admin-bookings-table">
                         <TableHeader className="bg-secondary/15">
-                          <TableRow>
+                          <TableRow className="border-b border-border/40">
                             <TableHead className="w-10">
                               <button
                                 onClick={toggleSelectAll}
@@ -1034,73 +1080,94 @@ export default function AdminDashboard() {
                             <TableHead onClick={() => handleHeaderSort("attendees_count")} className="font-bold cursor-pointer hover:text-foreground">
                               <span className="flex items-center gap-1">Guests <ArrowUpDown className="h-3 w-3" /></span>
                             </TableHead>
-                            <TableHead className="font-bold">Food Catering Ordered</TableHead>
+                            <TableHead className="font-bold">Catering Items</TableHead>
                             <TableHead onClick={() => handleHeaderSort("total_amount")} className="font-bold cursor-pointer hover:text-foreground">
                               <span className="flex items-center gap-1">Amount <ArrowUpDown className="h-3 w-3" /></span>
                             </TableHead>
-                            <TableHead className="font-bold">Table</TableHead>
+                            <TableHead className="font-bold">Table Assigned</TableHead>
                             <TableHead className="font-bold">Status</TableHead>
-                            <TableHead className="font-bold text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {paginatedBookings.map(b => {
                             const isChecked = selectedBookings.includes(b.id);
                             return (
-                              <TableRow key={b.id} className={cn("hover:bg-secondary/15 transition-colors", isChecked && "bg-primary/5")}>
+                              <TableRow key={b.id} className={cn("hover:bg-secondary/15 transition-colors border-b border-border/30", isChecked && "bg-primary/5")}>
                                 <TableCell>
                                   <button
                                     onClick={() => toggleSelectBooking(b.id)}
                                     className="p-1 rounded hover:bg-secondary text-muted-foreground"
                                   >
                                     {isChecked ? (
-                                      <CheckSquare className="h-4 w-4 text-primary" />
+                                      <CheckSquare className="h-4.5 w-4.5 text-primary" />
                                     ) : (
-                                      <Square className="h-4 w-4" />
+                                      <Square className="h-4.5 w-4.5" />
                                     )}
                                   </button>
                                 </TableCell>
-                                <TableCell className="font-mono text-xs font-bold text-foreground">{b.reservation_code}</TableCell>
+                                <TableCell className="font-mono text-xs font-bold text-foreground bg-secondary/10 px-2 py-1 rounded w-fit">{b.reservation_code}</TableCell>
                                 <TableCell className="font-semibold text-foreground text-sm">{b.graduate_name}</TableCell>
                                 <TableCell className="text-sm max-w-[120px] truncate">{b.course}</TableCell>
                                 <TableCell className="text-sm">{b.graduation_date}</TableCell>
                                 <TableCell className="font-semibold">{b.attendees_count}</TableCell>
                                 <TableCell>
                                   {b.wants_food ? (
-                                    <div className="space-y-1.5 max-w-[200px]">
-                                      {(b.selections || []).map((sel, idx) => (
-                                        <div key={idx} className="text-[11px] flex justify-between gap-2 border-b border-border/10 pb-0.5 last:border-0 last:pb-0">
-                                          <span className="truncate text-muted-foreground font-medium" title={sel.product_name}>{sel.product_name}</span>
-                                          <span className="font-black text-foreground shrink-0">x{sel.quantity}</span>
-                                        </div>
-                                      ))}
+                                    <div className="flex flex-wrap gap-1 max-w-[240px]">
+                                      {(b.selections || []).map((sel, idx) => {
+                                        const cat = getProductCategory(sel.product_id, sel.product_name);
+                                        const badgeColors = {
+                                          food: "bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900/30",
+                                          drink: "bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900/30",
+                                          pastry: "bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/30"
+                                        };
+                                        return (
+                                          <Badge
+                                            key={idx}
+                                            variant="outline"
+                                            className={cn("text-[9px] font-bold py-0.5 px-2 rounded-md tracking-tight flex items-center gap-1 shrink-0 shadow-3xs", badgeColors[cat] || badgeColors.food)}
+                                            title={sel.product_name}
+                                          >
+                                            <span className="truncate max-w-[85px]">{sel.product_name}</span>
+                                            <span className="opacity-75">x{sel.quantity}</span>
+                                          </Badge>
+                                        );
+                                      })}
                                       {(b.selections || []).length === 0 && <span className="text-xs text-muted-foreground">Yes (No items)</span>}
                                     </div>
                                   ) : (
                                     <span className="text-muted-foreground text-xs font-semibold">No</span>
                                   )}
                                 </TableCell>
-                                <TableCell className="font-semibold text-primary">GHC {b.total_amount?.toFixed(2)}</TableCell>
-                                <TableCell className="font-mono text-xs font-bold">{b.table_number || "-"}</TableCell>
-                                <TableCell>{statusBadge(b.status)}</TableCell>
-                                <TableCell className="text-right">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => openTableDialog(b)}
-                                    data-testid="admin-assign-table-button"
-                                    className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-primary"
-                                    title="Assign Table"
-                                  >
-                                    <Table2 className="h-4 w-4" />
-                                  </Button>
+                                <TableCell className="font-bold text-foreground">GHC {b.total_amount?.toFixed(2)}</TableCell>
+                                <TableCell>
+                                  {b.table_number ? (
+                                    <Badge
+                                      variant="secondary"
+                                      onClick={() => openTableDialog(b)}
+                                      data-testid="admin-assign-table-button"
+                                      className="font-mono text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 border border-primary/20 flex items-center gap-1 py-1 px-2.5 rounded-lg cursor-pointer transition-colors w-fit"
+                                    >
+                                      <Table2 className="h-3 w-3" /> {b.table_number}
+                                    </Badge>
+                                  ) : (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => openTableDialog(b)}
+                                      data-testid="admin-assign-table-button"
+                                      className="h-8 px-2.5 rounded-xl text-[10px] font-bold border-dashed border-primary/30 text-primary hover:bg-primary/5 hover:border-primary gap-1 transition-colors"
+                                    >
+                                      <Plus className="h-3.5 w-3.5" /> Assign
+                                    </Button>
+                                  )}
                                 </TableCell>
+                                <TableCell>{statusBadge(b.status)}</TableCell>
                               </TableRow>
                             );
                           })}
                           {filteredBookings.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={11} className="text-center text-muted-foreground py-16">
+                              <TableCell colSpan={10} className="text-center text-muted-foreground py-16">
                                 No matching bookings found
                               </TableCell>
                             </TableRow>
@@ -1158,13 +1225,25 @@ export default function AdminDashboard() {
                           {b.wants_food && (b.selections || []).length > 0 && (
                             <div className="border-t border-border/40 pt-2 space-y-1.5">
                               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Ordered Catering Items:</span>
-                              <div className="grid grid-cols-2 gap-1.5 pl-1">
-                                {(b.selections || []).map((sel, idx) => (
-                                  <div key={idx} className="flex justify-between items-center bg-secondary/35 px-2.5 py-1 rounded-lg border border-border/30 text-xs">
-                                    <span className="font-semibold text-foreground truncate max-w-[125px]">{sel.product_name}</span>
-                                    <span className="font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded">x{sel.quantity}</span>
-                                  </div>
-                                ))}
+                              <div className="flex flex-wrap gap-1 pl-1">
+                                {(b.selections || []).map((sel, idx) => {
+                                  const cat = getProductCategory(sel.product_id, sel.product_name);
+                                  const badgeColors = {
+                                    food: "bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900/30",
+                                    drink: "bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900/30",
+                                    pastry: "bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/30"
+                                  };
+                                  return (
+                                    <Badge
+                                      key={idx}
+                                      variant="outline"
+                                      className={cn("text-[9px] font-bold py-0.5 px-2 rounded-md tracking-tight flex items-center gap-1 shrink-0", badgeColors[cat] || badgeColors.food)}
+                                    >
+                                      <span>{sel.product_name}</span>
+                                      <span className="opacity-75">x{sel.quantity}</span>
+                                    </Badge>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -1238,7 +1317,7 @@ export default function AdminDashboard() {
                     <div className="hidden md:block">
                       <Table data-testid="admin-payments-table">
                         <TableHeader className="bg-secondary/15">
-                          <TableRow>
+                          <TableRow className="border-b border-border/45">
                             <TableHead className="font-bold">Reference</TableHead>
                             <TableHead className="font-bold">Amount Paid</TableHead>
                             <TableHead className="font-bold">Payment Status</TableHead>
@@ -1247,9 +1326,9 @@ export default function AdminDashboard() {
                         </TableHeader>
                         <TableBody>
                           {payments.map(p => (
-                            <TableRow key={p.id} className="hover:bg-secondary/15">
+                            <TableRow key={p.id} className="hover:bg-secondary/15 border-b border-border/30">
                               <TableCell className="font-mono text-xs font-bold text-foreground">{p.reference}</TableCell>
-                              <TableCell className="font-bold">GHC {p.amount?.toFixed(2)}</TableCell>
+                              <TableCell className="font-bold text-foreground">GHC {p.amount?.toFixed(2)}</TableCell>
                               <TableCell>{statusBadge(p.status)}</TableCell>
                               <TableCell className="text-sm">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "-"}</TableCell>
                             </TableRow>
@@ -1667,6 +1746,51 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Floating Action Bar Overlay */}
+      <AnimatePresence>
+        {selectedBookings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-foreground/90 dark:bg-card/90 text-background dark:text-foreground backdrop-blur-md px-5 py-3.5 rounded-2xl shadow-2xl flex items-center justify-between gap-5 border border-border/15 max-w-[92vw] w-full sm:max-w-md"
+          >
+            <div className="flex items-center gap-2 shrink-0">
+              <CheckSquare className="h-4.5 w-4.5 text-primary" />
+              <span className="text-xs sm:text-sm font-bold">
+                {selectedBookings.length} Selected
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportToCSV}
+                className="h-8.5 px-3 rounded-lg border-border/30 text-[11px] font-bold bg-transparent hover:bg-background/10 text-inherit"
+              >
+                <Download className="h-3.5 w-3.5 mr-1" /> Export
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={bulkClearTables}
+                className="h-8.5 px-3 rounded-lg border-destructive/30 hover:border-destructive text-[11px] font-bold bg-transparent text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear Tables
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedBookings([])}
+                className="h-8.5 px-2.5 rounded-lg text-[11px] font-bold text-muted-foreground hover:text-foreground hover:bg-background/5"
+              >
+                Cancel
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
