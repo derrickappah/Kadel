@@ -712,27 +712,32 @@ async def verify_payment(reference: str):
         return {"status": "success", "booking": serialize_doc(booking)}
 
     # Payment exists but still pending — query Moolre directly for live status
-    if payment and MOOLRE_USERNAME and MOOLRE_PRIVATE_KEY:
+    if payment and MOOLRE_USERNAME and MOOLRE_PUBLIC_KEY and MOOLRE_ACCOUNT_NUMBER:
         try:
             async with httpx.AsyncClient() as http_client:
                 moolre_res = await http_client.post(
                     f"{MOOLRE_BASE_URL}/open/transact/status",
                     headers={
                         "X-API-USER": MOOLRE_USERNAME,
-                        "X-API-KEY": MOOLRE_PRIVATE_KEY,
+                        "X-API-PUBKEY": MOOLRE_PUBLIC_KEY,
                         "Content-Type": "application/json"
                     },
-                    json={"externalref": reference},
+                    json={
+                        "type": 1,
+                        "idtype": "1",
+                        "id": reference,
+                        "accountnumber": MOOLRE_ACCOUNT_NUMBER
+                    },
                     timeout=10
                 )
                 moolre_data = moolre_res.json()
                 logger.info(f"Moolre status check for {reference}: {moolre_data}")
 
                 moolre_status = moolre_data.get("status")
-                inner = moolre_data.get("data", {})
-                tx_status = (inner.get("status") or inner.get("transactionstatus") or "").lower()
+                inner = moolre_data.get("data", {}) or {}
+                txstatus = inner.get("txstatus")
 
-                if moolre_status == 1 and tx_status in ("success", "successful", "completed", "paid"):
+                if moolre_status == 1 and txstatus == 1:
                     updated = await _confirm_payment_by_reference(reference)
                     if updated:
                         return {"status": "success", "booking": serialize_doc(updated)}
@@ -740,7 +745,6 @@ async def verify_payment(reference: str):
             logger.error(f"Moolre status check error for {reference}: {e}")
 
     return {"status": "pending", "message": "Payment not yet confirmed"}
-
 async def _confirm_payment_by_reference(reference: str):
     """Shared logic: mark payment success, confirm booking, send notifications."""
     await supabase.table("payments").update({"status": "success"}).eq("reference", reference).execute()
@@ -749,19 +753,22 @@ async def _confirm_payment_by_reference(reference: str):
     if payment:
         res_book = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
         booking = res_book.data[0] if res_book.data else None
-        if booking and booking["status"] != "confirmed":
-            for sel in booking.get("selections", []):
-                await adjust_product_stock(sel["product_id"], -sel["quantity"])
-            table_number = await auto_assign_table()
-            await supabase.table("bookings").update({
-                "status": "confirmed",
-                "table_number": table_number
-            }).eq("id", payment["booking_id"]).execute()
-            res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
-            updated = res_updated.data[0] if res_updated.data else None
-            await send_confirmation_email(updated)
-            await send_confirmation_sms(updated)
-            return updated
+        if booking:
+            if booking["status"] != "confirmed":
+                for sel in booking.get("selections", []):
+                    await adjust_product_stock(sel["product_id"], -sel["quantity"])
+                table_number = await auto_assign_table()
+                await supabase.table("bookings").update({
+                    "status": "confirmed",
+                    "table_number": table_number
+                }).eq("id", payment["booking_id"]).execute()
+                res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
+                updated = res_updated.data[0] if res_updated.data else None
+                await send_confirmation_email(updated)
+                await send_confirmation_sms(updated)
+                return updated
+            else:
+                return booking
     return None
 
 @api_router.post("/payments/test-complete/{booking_id}")
