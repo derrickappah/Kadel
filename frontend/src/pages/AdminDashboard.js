@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   LayoutDashboard, Package, Receipt, Table2, Calendar, Settings, LogOut,
-  Plus, Pencil, Trash2, Users, CreditCard, Loader2, Menu, X, CheckCircle
+  Plus, Pencil, Trash2, Users, CreditCard, Loader2, Menu, X, CheckCircle,
+  BarChart3, TrendingUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "bookings", label: "Bookings", icon: Receipt },
   { id: "products", label: "Products", icon: Package },
   { id: "dates", label: "Dates", icon: Calendar },
@@ -51,6 +53,80 @@ export default function AdminDashboard() {
   const [dateForm, setDateForm] = useState({ date_label: "" });
   const [tableDialog, setTableDialog] = useState(false);
   const [tableForm, setTableForm] = useState({ booking_id: "", table_number: "" });
+
+  const analytics = useMemo(() => {
+    let admissionRevenue = 0;
+    let foodRevenue = 0;
+    let drinkRevenue = 0;
+    let pastryRevenue = 0;
+
+    const confirmedBookings = (bookings || []).filter(b => b.status === "confirmed");
+    const totalConfirmed = confirmedBookings.length;
+    const confirmedWithCatering = confirmedBookings.filter(b => b.wants_food).length;
+    const cateringAttachmentRate = totalConfirmed > 0 ? (confirmedWithCatering / totalConfirmed) * 100 : 0;
+
+    const productSalesMap = {};
+    const vendorSalesMap = {};
+    const courseMap = {};
+
+    confirmedBookings.forEach(b => {
+      const baseFeePerPerson = settings.event_fee_per_person || 1;
+      const baseFeeForBooking = b.attendees_count * baseFeePerPerson;
+      admissionRevenue += baseFeeForBooking;
+
+      const courseName = b.course || "Other Program";
+      courseMap[courseName] = (courseMap[courseName] || 0) + 1;
+
+      const selections = b.selections || [];
+      selections.forEach(sel => {
+        const qty = sel.quantity || 0;
+        const price = sel.unit_price || 0;
+        const subtotal = qty * price;
+
+        const prod = products.find(p => p.id === sel.product_id || p.name === sel.product_name);
+        const cat = prod ? prod.category : "food";
+        const vendor = prod ? (prod.vendor || "In-House Fulfillment") : "In-House Fulfillment";
+
+        if (cat === "drink") drinkRevenue += subtotal;
+        else if (cat === "pastry") pastryRevenue += subtotal;
+        else foodRevenue += subtotal;
+
+        if (!productSalesMap[sel.product_name]) {
+          productSalesMap[sel.product_name] = { name: sel.product_name, quantity: 0, revenue: 0, category: cat };
+        }
+        productSalesMap[sel.product_name].quantity += qty;
+        productSalesMap[sel.product_name].revenue += subtotal;
+
+        if (!vendorSalesMap[vendor]) {
+          vendorSalesMap[vendor] = { name: vendor, itemsCount: 0, revenue: 0 };
+        }
+        vendorSalesMap[vendor].itemsCount += qty;
+        vendorSalesMap[vendor].revenue += subtotal;
+      });
+    });
+
+    const totalRevenue = admissionRevenue + foodRevenue + drinkRevenue + pastryRevenue;
+
+    const popularProducts = Object.values(productSalesMap).sort((a, b) => b.quantity - a.quantity);
+    const topVendors = Object.values(vendorSalesMap).sort((a, b) => b.revenue - a.revenue);
+    const popularCourses = Object.entries(courseMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    return {
+      totalRevenue,
+      admissionRevenue,
+      foodRevenue,
+      drinkRevenue,
+      pastryRevenue,
+      totalConfirmed,
+      confirmedWithCatering,
+      cateringAttachmentRate,
+      popularProducts,
+      topVendors,
+      popularCourses
+    };
+  }, [bookings, products, settings]);
 
   const token = localStorage.getItem("admin_token");
 
@@ -387,6 +463,217 @@ export default function AdminDashboard() {
                       <p className="text-center text-sm text-muted-foreground py-6">No bookings yet</p>
                     )}
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* ANALYTICS */}
+          {activeTab === "analytics" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="font-display text-2xl font-semibold">Analytics Insights</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Real-time catering attachment rates, popular products, course trends, and vendor breakdowns.</p>
+                </div>
+                <Badge variant="outline" className="w-fit border-primary/20 bg-primary/5 text-primary text-xs font-bold px-3 py-1 gap-1.5 flex items-center">
+                  <TrendingUp className="h-3.5 w-3.5" /> Live Data
+                </Badge>
+              </div>
+
+              {/* Top Row: Catering Attachment & Revenue Breakdown */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Catering Attachment Rate Card */}
+                <Card className="border-border/80 shadow-md">
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold text-foreground">Catering Attachment Rate</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-6 py-2">
+                    {/* SVG Radial Progress Ring */}
+                    <div className="relative w-36 h-36 flex-shrink-0 flex items-center justify-center">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <circle
+                          cx="72"
+                          cy="72"
+                          r="56"
+                          stroke="currentColor"
+                          strokeWidth="10"
+                          fill="transparent"
+                          className="text-secondary"
+                        />
+                        <circle
+                          cx="72"
+                          cy="72"
+                          r="56"
+                          stroke="currentColor"
+                          strokeWidth="10"
+                          fill="transparent"
+                          strokeDasharray={351.8}
+                          strokeDashoffset={351.8 - (351.8 * (analytics.cateringAttachmentRate || 0)) / 100}
+                          className="text-primary transition-all duration-500 ease-out"
+                        />
+                      </svg>
+                      <div className="absolute flex flex-col items-center justify-center">
+                        <span className="text-2xl font-black text-foreground">
+                          {analytics.cateringAttachmentRate.toFixed(1)}%
+                        </span>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Catering</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 flex-1">
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        Percentage of confirmed graduates who added food, drinks, or pastries to their reservation.
+                      </p>
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">Admission only</p>
+                          <p className="text-lg font-bold text-foreground">{analytics.totalConfirmed - analytics.confirmedWithCatering}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] uppercase font-bold text-muted-foreground">With Catering</p>
+                          <p className="text-lg font-bold text-primary">{analytics.confirmedWithCatering}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Revenue Breakdown Card */}
+                <Card className="border-border/80 shadow-md">
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold text-foreground">Revenue Distribution</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {[
+                      { label: "Admission & Space Booking", val: analytics.admissionRevenue, color: "bg-teal-500", rawColor: "#14b8a6" },
+                      { label: "Food Catering", val: analytics.foodRevenue, color: "bg-amber-500", rawColor: "#f59e0b" },
+                      { label: "Drink Packages", val: analytics.drinkRevenue, color: "bg-blue-500", rawColor: "#3b82f6" },
+                      { label: "Pastry Platters", val: analytics.pastryRevenue, color: "bg-rose-500", rawColor: "#f43f5e" }
+                    ].map((item, idx) => {
+                      const percentage = analytics.totalRevenue > 0 ? (item.val / analytics.totalRevenue) * 100 : 0;
+                      return (
+                        <div key={idx} className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-semibold text-foreground flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${item.color}`} />
+                              {item.label}
+                            </span>
+                            <span className="font-bold text-muted-foreground">
+                              GHC {item.val.toFixed(2)} ({percentage.toFixed(1)}%)
+                            </span>
+                          </div>
+                          <div className="w-full bg-secondary h-2 rounded-full overflow-hidden">
+                            <div className={`h-full ${item.color}`} style={{ width: `${percentage}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div className="pt-3 border-t flex justify-between items-center">
+                      <span className="text-xs uppercase font-extrabold text-muted-foreground">Total Revenue</span>
+                      <span className="text-lg font-black text-primary">GHC {analytics.totalRevenue.toFixed(2)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Middle Row: Popular Catering & Program Popularity */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Popular Products Leaderboard */}
+                <Card className="border-border/80 shadow-md">
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold text-foreground">Top Catering Items</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {analytics.popularProducts.slice(0, 5).map((item, idx) => {
+                      const maxQty = analytics.popularProducts[0]?.quantity || 1;
+                      const percentage = (item.quantity / maxQty) * 100;
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-muted-foreground w-4">{idx + 1}.</span>
+                              <span className="font-semibold text-foreground">{item.name}</span>
+                              <Badge variant="secondary" className="text-[9px] uppercase font-bold py-0.5 px-1.5">{item.category}</Badge>
+                            </div>
+                            <span className="font-bold text-foreground">
+                              {item.quantity} sold <span className="text-muted-foreground font-normal">(GHC {item.revenue.toFixed(2)})</span>
+                            </span>
+                          </div>
+                          <div className="w-full bg-secondary/60 h-1.5 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary" style={{ width: `${percentage}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {analytics.popularProducts.length === 0 && (
+                      <p className="text-center text-sm text-muted-foreground py-8">No catering sales data yet</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Popular Graduation Programs */}
+                <Card className="border-border/80 shadow-md">
+                  <CardHeader>
+                    <CardTitle className="text-base font-bold text-foreground">Top Programs Booking Tables</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {analytics.popularCourses.slice(0, 5).map((item, idx) => {
+                      const maxCount = analytics.popularCourses[0]?.count || 1;
+                      const percentage = (item.count / maxCount) * 100;
+                      return (
+                        <div key={idx} className="space-y-1">
+                          <div className="flex justify-between items-center text-xs">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-muted-foreground w-4">{idx + 1}.</span>
+                              <span className="font-semibold text-foreground truncate max-w-[200px] sm:max-w-xs">{item.name}</span>
+                            </div>
+                            <span className="font-bold text-foreground">{item.count} Tables Reserved</span>
+                          </div>
+                          <div className="w-full bg-secondary/60 h-1.5 rounded-full overflow-hidden">
+                            <div className="h-full bg-teal-500" style={{ width: `${percentage}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {analytics.popularCourses.length === 0 && (
+                      <p className="text-center text-sm text-muted-foreground py-8">No bookings data yet</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Bottom Row: Vendor Breakdown */}
+              <Card className="border-border/80 shadow-md">
+                <CardHeader>
+                  <CardTitle className="text-base font-bold text-foreground">Vendor Fulfillment & Payouts</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 overflow-x-auto">
+                  <Table>
+                    <TableHeader className="bg-secondary/15">
+                      <TableRow>
+                        <TableHead>Vendor Name</TableHead>
+                        <TableHead>Items Fulfilled</TableHead>
+                        <TableHead>Total Revenue Generated</TableHead>
+                        <TableHead>Suggested Payout (80%)</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {analytics.topVendors.map((vendor, idx) => (
+                        <TableRow key={idx}>
+                          <TableCell className="font-semibold text-foreground">{vendor.name}</TableCell>
+                          <TableCell>{vendor.itemsCount} items</TableCell>
+                          <TableCell className="font-semibold text-primary">GHC {vendor.revenue.toFixed(2)}</TableCell>
+                          <TableCell className="font-bold text-emerald-600">GHC {(vendor.revenue * 0.8).toFixed(2)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {analytics.topVendors.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No vendor sales data yet</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </div>
