@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
   LayoutDashboard, Package, Receipt, Table2, Calendar, Settings, LogOut,
   Plus, Pencil, Trash2, Users, CreditCard, Loader2, Menu, X, CheckCircle,
@@ -1112,30 +1113,65 @@ export default function AdminDashboard() {
                                 <TableCell className="font-semibold">{b.attendees_count}</TableCell>
                                 <TableCell>
                                   {b.wants_food ? (
-                                    <div className="flex flex-wrap gap-1 max-w-[240px]">
-                                      {(b.selections || []).map((sel, idx) => {
-                                        const cat = getProductCategory(sel.product_id, sel.product_name);
-                                        const badgeColors = {
-                                          food: "bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900/30",
-                                          drink: "bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900/30",
-                                          pastry: "bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/30"
-                                        };
-                                        return (
-                                          <Badge
-                                            key={idx}
-                                            variant="outline"
-                                            className={cn("text-[9px] font-bold py-0.5 px-2 rounded-md tracking-tight flex items-center gap-1 shrink-0 shadow-3xs", badgeColors[cat] || badgeColors.food)}
-                                            title={sel.product_name}
-                                          >
-                                            <span className="truncate max-w-[85px]">{sel.product_name}</span>
-                                            <span className="opacity-75">x{sel.quantity}</span>
-                                          </Badge>
-                                        );
-                                      })}
-                                      {(b.selections || []).length === 0 && <span className="text-xs text-muted-foreground">Yes (No items)</span>}
-                                    </div>
+                                    (() => {
+                                      const totalQty = (b.selections || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
+                                      const totalCateringCost = (b.selections || []).reduce((sum, item) => sum + ((item.quantity || 0) * (item.unit_price || 0)), 0);
+                                      return (
+                                        <Popover>
+                                          <PopoverTrigger asChild>
+                                            <button className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary text-primary transition-all duration-150 shadow-3xs cursor-pointer active:scale-95">
+                                              <Sparkles className="h-3 w-3 text-primary animate-pulse" />
+                                              <span>{totalQty} Items</span>
+                                            </button>
+                                          </PopoverTrigger>
+                                          <PopoverContent className="w-80 rounded-2xl border border-border/80 bg-card p-4 shadow-xl z-50">
+                                            <div className="space-y-3">
+                                              <div>
+                                                <h4 className="font-display font-bold text-sm text-foreground">Ordered Catering Items</h4>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">Itemized dinner selections breakdown</p>
+                                              </div>
+                                              <Separator className="bg-border/60" />
+                                              <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                                                {(b.selections || []).map((sel, idx) => {
+                                                  const cat = getProductCategory(sel.product_id, sel.product_name);
+                                                  const badgeColors = {
+                                                    food: "bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/20 dark:text-amber-300 dark:border-amber-900/30",
+                                                    drink: "bg-blue-50 text-blue-700 border-blue-200/50 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-900/30",
+                                                    pastry: "bg-rose-50 text-rose-700 border-rose-200/50 dark:bg-rose-950/20 dark:text-rose-300 dark:border-rose-900/30"
+                                                  };
+                                                  const icons = { food: "🍔", drink: "🥤", pastry: "🍰" };
+                                                  return (
+                                                    <div key={idx} className="flex items-center justify-between gap-3 text-xs border-b border-border/10 pb-1.5 last:border-0 last:pb-0">
+                                                      <div className="flex items-center gap-2 min-w-0">
+                                                        <Badge variant="outline" className={cn("text-[9px] font-bold py-0.5 px-1.5 rounded-md", badgeColors[cat] || badgeColors.food)}>
+                                                          {icons[cat] || "🍔"}
+                                                        </Badge>
+                                                        <span className="font-semibold text-foreground truncate max-w-[120px]" title={sel.product_name}>{sel.product_name}</span>
+                                                        <span className="text-muted-foreground text-[10px] font-bold">x{sel.quantity}</span>
+                                                      </div>
+                                                      <div className="text-right shrink-0">
+                                                        <span className="font-bold text-foreground">GHC {(sel.quantity * sel.unit_price).toFixed(2)}</span>
+                                                        <span className="block text-[9px] text-muted-foreground">GHC {sel.unit_price.toFixed(2)} ea</span>
+                                                      </div>
+                                                    </div>
+                                                  );
+                                                })}
+                                                {(b.selections || []).length === 0 && (
+                                                  <p className="text-center text-xs text-muted-foreground py-3">Catering selected, but no items added.</p>
+                                                )}
+                                              </div>
+                                              <Separator className="bg-border/60" />
+                                              <div className="flex justify-between items-center text-xs pt-1">
+                                                <span className="font-extrabold text-muted-foreground uppercase tracking-wider text-[10px]">Catering Total</span>
+                                                <span className="font-black text-primary text-sm">GHC {totalCateringCost.toFixed(2)}</span>
+                                              </div>
+                                            </div>
+                                          </PopoverContent>
+                                        </Popover>
+                                      );
+                                    })()
                                   ) : (
-                                    <span className="text-muted-foreground text-xs font-semibold">No</span>
+                                    <span className="text-muted-foreground text-xs font-semibold pl-2.5">—</span>
                                   )}
                                 </TableCell>
                                 <TableCell className="font-bold text-foreground">GHC {b.total_amount?.toFixed(2)}</TableCell>
