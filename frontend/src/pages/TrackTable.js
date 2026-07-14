@@ -49,60 +49,50 @@ export default function TrackTable() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-12">
-      {/* Navbar */}
-      <nav className="sticky top-0 z-50 backdrop-blur bg-background/80 border-b border-border">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
-            <span className="font-display text-xl font-semibold">KaDel</span>
-            <span className="text-xs text-muted-foreground font-medium bg-secondary px-2 py-0.5 rounded-full">Ghana</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
-              <ArrowLeft className="mr-1.5 h-4 w-4" /> Home
-            </Button>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-background py-10 sm:py-16 px-4">
+      <div className="max-w-2xl mx-auto pb-32">
+        {/* Back navigation link */}
+        <button 
+          onClick={() => navigate('/')} 
+          className="group mb-8 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Home</span>
+        </button>
 
-      {/* Main Content */}
-      <div className="max-w-2xl mx-auto px-4 pt-10">
-        <div className="text-center mb-8">
-          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+        {/* Header */}
+        <div className="text-center mb-10">
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
             <Table2 className="h-6 w-6 text-primary" />
           </div>
-          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Track My Table</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Enter your reservation code to track your status and see your assigned table.
+          <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
+            Track Reservation
+          </h1>
+          <p className="mt-2 text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+            Enter your reservation code to view your table assignment, guest headcount, and catering details.
           </p>
         </div>
 
-        {/* Search Card */}
-        <Card className="border-border/80 shadow-md mb-8">
+        {/* Search Input Box */}
+        <Card className="border-border/80 shadow-lg rounded-2xl mb-8 overflow-hidden">
           <CardContent className="pt-6">
             <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
-                <Label htmlFor="code" className="sr-only">Reservation Code</Label>
+              <div className="relative flex-1">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input
                   id="code"
-                  placeholder="e.g. KAD123"
+                  placeholder="ENTER RESERVATION CODE (e.g. KAD123)"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  className="h-11 md:h-10 text-base md:text-sm uppercase font-mono tracking-wider"
+                  className="h-12 pl-11 text-base uppercase font-mono tracking-widest border-border/80 focus:border-primary focus:ring-1 focus:ring-primary/20 rounded-xl"
                   disabled={loading}
                 />
               </div>
-              <Button type="submit" disabled={loading} className="h-11 sm:h-10 px-6 font-semibold">
+              <Button type="submit" disabled={loading} size="lg" className="h-12 px-8 font-bold rounded-xl active:scale-98 transition-all">
                 {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Searching...
-                  </>
+                  <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Searching...</>
                 ) : (
-                  <>
-                    <Search className="mr-2 h-4 w-4" />
-                    Find Details
-                  </>
+                  "Find Details"
                 )}
               </Button>
             </form>
@@ -119,133 +109,141 @@ export default function TrackTable() {
               transition={{ duration: 0.25 }}
               className="space-y-6"
             >
-              {/* Table Assignment Hero Banner */}
-              <Card className="border-border/80 overflow-hidden shadow-lg relative">
-                <div className="kente-bar w-full h-1.5" />
-                <CardContent className="pt-8 pb-8 text-center flex flex-col items-center">
-                  <div className="relative">
+              {/* Premium Ticket Card */}
+              <Card className="border-border/80 overflow-hidden shadow-xl rounded-2xl relative bg-card">
+                {/* Ghana Kente Accent Flag at the very top */}
+                <div className="flex gap-0 h-1.5 w-full">
+                  <div className="bg-[#FF3300] flex-1" />
+                  <div className="bg-[#FFCC00] flex-1" />
+                  <div className="bg-[#009933] flex-1" />
+                </div>
+                
+                <CardContent className="pt-8 pb-8 px-6 sm:px-8 text-center flex flex-col items-center">
+                  {/* Status Ring Badge */}
+                  <div className="relative mb-4">
                     {reservation.status === "confirmed" ? (
-                      <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center mb-4">
-                        <CheckCircle2 className="h-10 w-10 text-emerald-500 animate-pulse" />
+                      <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="h-9 w-9 text-emerald-500" />
                       </div>
                     ) : (
-                      <div className="mx-auto w-16 h-16 rounded-full bg-amber-500/10 flex items-center justify-center mb-4">
-                        <Clock className="h-10 w-10 text-amber-500 animate-pulse" />
+                      <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+                        <Clock className="h-9 w-9 text-amber-500 animate-pulse" />
                       </div>
                     )}
-                    <Badge 
-                      variant={reservation.status === "confirmed" ? "success" : "warning"}
-                      className="absolute -top-1 -right-4 px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border"
-                    >
-                      {reservation.status}
-                    </Badge>
                   </div>
                   
-                  <h3 className="font-display text-xl font-bold text-foreground">
-                    {reservation.status === "confirmed" ? "Reservation Confirmed!" : "Reservation Pending"}
+                  <Badge 
+                    variant={reservation.status === "confirmed" ? "success" : "warning"}
+                    className="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider shadow-sm border"
+                  >
+                    {reservation.status}
+                  </Badge>
+
+                  <h3 className="font-display text-2xl font-black text-foreground mt-4">
+                    {reservation.status === "confirmed" ? "Reservation Confirmed!" : "Pending Confirmation"}
                   </h3>
-                  <p className="text-xs text-muted-foreground mt-1 font-mono">
+                  <p className="text-xs font-mono font-bold text-muted-foreground uppercase tracking-widest mt-1">
                     Code: {reservation.reservation_code}
                   </p>
 
-                  <Separator className="my-6 max-w-sm" />
+                  <Separator className="my-6 max-w-sm border-border/60" />
 
-                  {/* Large Table Indicator */}
-                  <div className="space-y-2">
+                  {/* Large Glowing Table Assignment circle */}
+                  <div className="space-y-3">
                     <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest block">
-                      ASSIGNED TABLE
+                      Assigned Table
                     </span>
                     {reservation.table_number ? (
                       <motion.div 
-                        initial={{ scale: 0.9 }}
+                        initial={{ scale: 0.95 }}
                         animate={{ scale: 1 }}
-                        className="inline-flex flex-col items-center justify-center w-28 h-28 rounded-full bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg border-4 border-background"
+                        className="inline-flex flex-col items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-primary to-primary/85 text-primary-foreground shadow-lg shadow-primary/20 border-4 border-background"
                       >
-                        <span className="text-xs font-bold uppercase tracking-wider text-primary-foreground/70">Table</span>
-                        <span className="text-3xl font-extrabold font-mono tracking-tight -mt-1">{reservation.table_number}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/75">Table</span>
+                        <span className="text-4xl font-extrabold font-mono tracking-tight -mt-0.5">{reservation.table_number}</span>
                       </motion.div>
                     ) : (
-                      <div className="inline-flex flex-col items-center justify-center px-6 py-4 rounded-2xl bg-secondary/80 text-muted-foreground border border-dashed border-border">
+                      <div className="inline-flex flex-col items-center justify-center px-8 py-5 rounded-2xl bg-secondary/50 text-muted-foreground border border-dashed border-border">
                         <Table2 className="h-6 w-6 mb-1 text-muted-foreground/60" />
-                        <span className="text-xs font-semibold">Pending Assignment</span>
+                        <span className="text-xs font-bold">Pending Assignment</span>
                       </div>
                     )}
                     {reservation.table_number && (
-                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-2">
-                        <Sparkles className="h-3 w-3 text-primary" /> Present this table number at check-in
+                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5 mt-2 bg-secondary/50 px-4 py-1.5 rounded-full font-medium">
+                        <Sparkles className="h-3.5 w-3.5 text-primary" /> Present this table number at check-in
                       </p>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Guest & Reservation Details */}
-              <Card className="border-border/80 shadow-md">
-                <CardHeader>
-                  <CardTitle className="font-display text-lg">Details Summary</CardTitle>
+              {/* Details Summary Card */}
+              <Card className="border-border/80 shadow-lg rounded-2xl overflow-hidden bg-card">
+                <CardHeader className="bg-secondary/10 border-b border-border/40 py-4 px-6">
+                  <CardTitle className="font-display text-base font-bold text-foreground">Reservation Details</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex items-start gap-2.5">
-                      <GraduationCap className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                <CardContent className="p-6 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-6">
+                    <div className="flex items-start gap-3">
+                      <GraduationCap className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Graduate</p>
-                        <p className="text-sm font-semibold text-foreground">{reservation.graduate_name}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Graduate</p>
+                        <p className="text-sm font-bold text-foreground">{reservation.graduate_name}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5">
-                      <Calendar className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3">
+                      <Calendar className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Graduation Date</p>
-                        <p className="text-sm font-semibold text-foreground">{reservation.graduation_date}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Graduation Date</p>
+                        <p className="text-sm font-bold text-foreground">{reservation.graduation_date}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5 col-span-1 sm:col-span-2">
-                      <Briefcase className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2 border-t border-border/30 pt-3">
+                      <Briefcase className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Program</p>
-                        <p className="text-sm font-semibold text-foreground">{reservation.course}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Program</p>
+                        <p className="text-sm font-bold text-foreground">{reservation.course}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5">
-                      <Users className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3 border-t border-border/30 pt-3">
+                      <Users className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Guests</p>
-                        <p className="text-sm font-semibold text-foreground">{reservation.attendees_count} Guests</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Guests</p>
+                        <p className="text-sm font-bold text-foreground">{reservation.attendees_count} Guests</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5">
-                      <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3 border-t border-border/30 pt-3">
+                      <MapPin className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Amount Paid</p>
-                        <p className="text-sm font-semibold text-foreground">GHC {reservation.total_amount?.toFixed(2)}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Amount Paid</p>
+                        <p className="text-sm font-bold text-foreground">GHC {reservation.total_amount?.toFixed(2)}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5">
-                      <Mail className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2 border-t border-border/30 pt-3">
+                      <Mail className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Email</p>
-                        <p className="text-sm font-semibold text-foreground break-all">{reservation.email}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Email Address</p>
+                        <p className="text-sm font-bold text-foreground break-all">{reservation.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2.5">
-                      <Phone className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <div className="flex items-start gap-3 col-span-1 sm:col-span-2 border-t border-border/30 pt-3">
+                      <Phone className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground">Phone / WhatsApp</p>
-                        <p className="text-sm font-semibold text-foreground">{reservation.phone}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Phone / WhatsApp</p>
+                        <p className="text-sm font-bold text-foreground">{reservation.phone}</p>
                       </div>
                     </div>
                   </div>
 
                   {/* Catering details if any */}
                   {reservation.wants_food && reservation.selections && reservation.selections.length > 0 && (
-                    <div className="pt-4 border-t border-border/40">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Selected Catering Items</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-2">
+                    <div className="pt-5 border-t border-border/60">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-3">Selected Catering Items</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {reservation.selections.map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center bg-secondary/30 px-3 py-1.5 rounded-lg border border-border/40 text-xs">
-                            <span className="font-medium text-foreground">{item.product_name}</span>
-                            <span className="font-bold text-primary bg-primary/5 px-2 py-0.5 rounded">x{item.quantity}</span>
+                          <div key={idx} className="flex justify-between items-center bg-secondary/35 px-4 py-2.5 rounded-xl border border-border/40 text-xs">
+                            <span className="font-semibold text-foreground">{item.product_name}</span>
+                            <span className="font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg">x{item.quantity}</span>
                           </div>
                         ))}
                       </div>
@@ -261,12 +259,12 @@ export default function TrackTable() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-center p-8 bg-secondary/10 border border-border/60 rounded-2xl animate-fade-in"
+              className="text-center p-8 bg-destructive/5 border border-destructive/10 rounded-2xl animate-fade-in"
             >
-              <p className="text-sm text-muted-foreground font-medium">
-                No reservation found with code <span className="font-mono text-foreground font-semibold">"{code}"</span>.
+              <p className="text-sm text-destructive font-semibold">
+                No reservation found with code <span className="font-mono text-foreground font-extrabold uppercase">"{code}"</span>.
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground mt-1.5">
                 Please double check the spelling and try again.
               </p>
             </motion.div>
