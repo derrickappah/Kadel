@@ -700,14 +700,45 @@ async def initialize_payment(data: PaymentInit):
 
 @api_router.get("/payments/verify/{reference}")
 async def verify_payment(reference: str):
-    """Check DB for a confirmed payment by its Moolre externalref"""
+    """Check DB for a confirmed payment by Moolre externalref.
+    If still pending, actively query Moolre's API to pull latest status."""
     res_pay = await supabase.table("payments").select("*").eq("reference", reference).execute()
     payment = res_pay.data[0] if res_pay.data else None
 
+    # Already confirmed in our DB
     if payment and payment.get("status") == "success":
         res_book = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
         booking = res_book.data[0] if res_book.data else None
         return {"status": "success", "booking": serialize_doc(booking)}
+
+    # Payment exists but still pending — query Moolre directly for live status
+    if payment and MOOLRE_USERNAME and MOOLRE_PRIVATE_KEY:
+        try:
+            async with httpx.AsyncClient() as http_client:
+                moolre_res = await http_client.post(
+                    f"{MOOLRE_BASE_URL}/open/transact/status",
+                    headers={
+                        "X-API-USER": MOOLRE_USERNAME,
+                        "X-API-KEY": MOOLRE_PRIVATE_KEY,
+                        "Content-Type": "application/json"
+                    },
+                    json={"externalref": reference},
+                    timeout=10
+                )
+                moolre_data = moolre_res.json()
+                logger.info(f"Moolre status check for {reference}: {moolre_data}")
+
+                moolre_status = moolre_data.get("status")
+                inner = moolre_data.get("data", {})
+                tx_status = (inner.get("status") or inner.get("transactionstatus") or "").lower()
+
+                if moolre_status == 1 and tx_status in ("success", "successful", "completed", "paid"):
+                    updated = await _confirm_payment_by_reference(reference)
+                    if updated:
+                        return {"status": "success", "booking": serialize_doc(updated)}
+        except Exception as e:
+            logger.error(f"Moolre status check error for {reference}: {e}")
+
     return {"status": "pending", "message": "Payment not yet confirmed"}
 
 async def _confirm_payment_by_reference(reference: str):

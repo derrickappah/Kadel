@@ -48,17 +48,29 @@ export default function PaymentCallback() {
         return;
       }
 
-      try {
-        const res = await axios.get(`${API}/payments/verify/${reference}`);
-        if (res.data.status === "success") {
-          setBooking(res.data.booking);
-          setStatus("success");
-        } else {
-          setStatus("failed");
+      // Poll up to 8 times with 3s delay (24s total) — handles webhook timing delays
+      const MAX_RETRIES = 8;
+      const RETRY_DELAY_MS = 3000;
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const res = await axios.get(`${API}/payments/verify/${reference}`);
+          if (res.data.status === "success") {
+            setBooking(res.data.booking);
+            setStatus("success");
+            return;
+          }
+        } catch {
+          // Network error — keep retrying
         }
-      } catch {
-        setStatus("failed");
+
+        if (attempt < MAX_RETRIES) {
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        }
       }
+
+      // All retries exhausted
+      setStatus("failed");
     };
     verify();
   }, [searchParams]);
@@ -84,7 +96,7 @@ export default function PaymentCallback() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-20">
             <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
             <h2 className="font-display text-2xl font-semibold mb-2">Verifying Payment</h2>
-            <p className="text-muted-foreground">Please wait while we confirm your payment...</p>
+            <p className="text-muted-foreground">Confirming your payment with Moolre — this may take up to 30 seconds...</p>
           </motion.div>
         )}
 
