@@ -710,7 +710,21 @@ export default function AdminDashboard() {
                             <TableCell className="text-sm">{b.course}</TableCell>
                             <TableCell className="text-sm">{b.graduation_date}</TableCell>
                             <TableCell>{b.attendees_count}</TableCell>
-                            <TableCell>{b.wants_food ? "Yes" : "No"}</TableCell>
+                            <TableCell>
+                              {b.wants_food ? (
+                                <div className="space-y-1.5 max-w-[200px]">
+                                  {(b.selections || []).map((sel, idx) => (
+                                    <div key={idx} className="text-xs flex justify-between gap-2 border-b border-border/10 pb-0.5 last:border-0 last:pb-0">
+                                      <span className="truncate text-muted-foreground font-medium" title={sel.product_name}>{sel.product_name}</span>
+                                      <span className="font-extrabold text-foreground shrink-0">x{sel.quantity}</span>
+                                    </div>
+                                  ))}
+                                  {(b.selections || []).length === 0 && <span className="text-xs text-muted-foreground">Yes (No items)</span>}
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">No</span>
+                              )}
+                            </TableCell>
                             <TableCell className="font-semibold text-primary">GHC {b.total_amount?.toFixed(2)}</TableCell>
                             <TableCell className="font-mono text-xs font-semibold">{b.table_number || "-"}</TableCell>
                             <TableCell>{statusBadge(b.status)}</TableCell>
@@ -758,9 +772,21 @@ export default function AdminDashboard() {
                           <span className="truncate">Program: <span className="font-semibold text-foreground break-all">{b.course}</span></span>
                           <span className="truncate">Date: <span className="font-semibold text-foreground">{b.graduation_date}</span></span>
                           <span>Guests: <span className="font-semibold text-foreground">{b.attendees_count}</span></span>
-                          <span>Food Selection: <span className="font-semibold text-foreground">{b.wants_food ? "Yes" : "No"}</span></span>
                           <span>Table: <span className="font-mono font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded">{b.table_number || "Not Assigned"}</span></span>
                         </div>
+                        {b.wants_food && (b.selections || []).length > 0 && (
+                          <div className="border-t border-border/40 pt-2 space-y-1.5">
+                            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Ordered Catering Items:</span>
+                            <div className="grid grid-cols-2 gap-1.5 pl-1">
+                              {(b.selections || []).map((sel, idx) => (
+                                <div key={idx} className="flex justify-between items-center bg-secondary/30 px-2 py-1 rounded-lg border border-border/30 text-xs">
+                                  <span className="font-medium text-foreground truncate max-w-[125px]">{sel.product_name}</span>
+                                  <span className="font-bold text-primary bg-primary/5 px-1.5 py-0.5 rounded">x{sel.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center pt-2.5 border-t border-border/40">
                           <div className="flex flex-col">
                             <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Amount Paid</span>
