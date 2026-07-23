@@ -69,9 +69,10 @@ class AdminLoginReq(BaseModel):
 class ProductCreate(BaseModel):
     name: str
     category: str
-    price: float
-    stock: int
+    price: float = Field(..., ge=0, description="Price must be non-negative")
+    stock: int = Field(..., ge=0, description="Stock must be non-negative")
     vendor: str = ""
+
 
 class TableAssign(BaseModel):
     booking_id: str
@@ -114,12 +115,12 @@ async def get_current_admin(request: Request):
         logger.error(f"get_current_admin auth error: {e}")
         raise HTTPException(401, "Invalid token")
 
-async def auto_assign_table():
+async def auto_assign_table(graduation_date: str):
     # FIX: Order by the numeric value of the table number (not by created_at)
     # so we always increment from the highest assigned number rather than the
     # most recently created booking. Using created_at ordering could return T3
     # while T15 already exists, causing a table number collision.
-    res = await supabase.table("bookings").select("table_number").not_.is_("table_number", "null").execute()
+    res = await supabase.table("bookings").select("table_number").eq("graduation_date", graduation_date).not_.is_("table_number", "null").execute()
     if res.data:
         max_num = 0
         for row in res.data:
@@ -135,12 +136,16 @@ async def auto_assign_table():
             return f"T{max_num + 1}"
     return "T1"
 
+
 async def adjust_product_stock(product_id: str, amount: int):
-    res = await supabase.table("products").select("stock").eq("id", product_id).execute()
-    if res.data:
+    # FIX: Guard against stock going negative and prevent race conditions using Optimistic Concurrency Control (OCC) retry loop.
+    max_retries = 5
+    for attempt in range(max_retries):
+        res = await supabase.table("products").select("stock").eq("id", product_id).execute()
+        if not res.data:
+            logger.warning(f"Product {product_id} not found for stock adjustment")
+            return False
         current = res.data[0]["stock"]
-        # FIX: Guard against stock going negative. Stock should never be < 0;
-        # if the decrement would cause that, clamp to 0 and log a warning.
         new_stock = current + amount
         if new_stock < 0:
             logger.warning(
@@ -148,7 +153,18 @@ async def adjust_product_stock(product_id: str, amount: int):
                 f"(current={current}, adjustment={amount}). Clamping to 0."
             )
             new_stock = 0
-        await supabase.table("products").update({"stock": new_stock}).eq("id", product_id).execute()
+            
+        update_res = await supabase.table("products").update({"stock": new_stock})\
+            .eq("id", product_id)\
+            .eq("stock", current)\
+            .execute()
+        if update_res.data:
+            return True
+        logger.info(f"OCC retry for product {product_id} stock adjustment (attempt {attempt + 1})")
+        
+    logger.error(f"Failed to adjust stock for product {product_id} after {max_retries} attempts due to high concurrency")
+    return False
+
 
 async def send_confirmation_email(booking):
     """Send email confirmation using Resend API, falling back to SMTP if configured"""
@@ -613,6 +629,11 @@ async def get_event_settings():
 
 @api_router.post("/bookings")
 async def create_booking(booking: BookingCreate):
+    # Validate graduation date exists and is active
+    res_dates = await supabase.table("graduation_dates").select("*").eq("is_active", True).eq("date_label", booking.graduation_date).execute()
+    if not res_dates.data:
+        raise HTTPException(400, f"Graduation date '{booking.graduation_date}' is not valid or no longer active")
+
     res_settings = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
     settings = res_settings.data[0] if res_settings.data else {}
     event_fee = settings.get("event_fee_per_person", 0.0)
@@ -623,28 +644,30 @@ async def create_booking(booking: BookingCreate):
     # Client-supplied unit_price and subtotal values are completely ignored.
     validated_selections = []
     food_cost = 0.0
-    for sel in booking.selections:
-        res_prod = await supabase.table("products").select("*").eq("id", sel.product_id).execute()
-        product = res_prod.data[0] if res_prod.data else None
-        if not product:
-            raise HTTPException(400, f"Product {sel.product_name} not found")
-        if not product.get("is_active", True):
-            raise HTTPException(400, f"Product {sel.product_name} is no longer available")
-        if sel.quantity < 1:
-            raise HTTPException(400, f"Quantity for {sel.product_name} must be at least 1")
-        if product["stock"] < sel.quantity:
-            raise HTTPException(400, f"Insufficient stock for {sel.product_name}. Only {product['stock']} available.")
-        # Compute price server-side from DB record
-        server_unit_price = float(product["price"])
-        server_subtotal = server_unit_price * sel.quantity
-        food_cost += server_subtotal
-        validated_selections.append({
-            "product_id": sel.product_id,
-            "product_name": product["name"],  # use canonical name from DB
-            "quantity": sel.quantity,
-            "unit_price": server_unit_price,
-            "subtotal": server_subtotal,
-        })
+    # Clean/ignore selections if wants_food is False
+    if booking.wants_food:
+        for sel in booking.selections:
+            res_prod = await supabase.table("products").select("*").eq("id", sel.product_id).execute()
+            product = res_prod.data[0] if res_prod.data else None
+            if not product:
+                raise HTTPException(400, f"Product {sel.product_name} not found")
+            if not product.get("is_active", True):
+                raise HTTPException(400, f"Product {sel.product_name} is no longer available")
+            if sel.quantity < 1:
+                raise HTTPException(400, f"Quantity for {sel.product_name} must be at least 1")
+            if product["stock"] < sel.quantity:
+                raise HTTPException(400, f"Insufficient stock for {sel.product_name}. Only {product['stock']} available.")
+            # Compute price server-side from DB record
+            server_unit_price = float(product["price"])
+            server_subtotal = server_unit_price * sel.quantity
+            food_cost += server_subtotal
+            validated_selections.append({
+                "product_id": sel.product_id,
+                "product_name": product["name"],  # use canonical name from DB
+                "quantity": sel.quantity,
+                "unit_price": server_unit_price,
+                "subtotal": server_subtotal,
+            })
 
     total = base_cost + food_cost
 
@@ -691,12 +714,46 @@ async def create_booking(booking: BookingCreate):
         "event_fee_per_person": event_fee
     }
 
+
 @api_router.post("/payments/initialize")
 async def initialize_payment(data: PaymentInit):
     res = await supabase.table("bookings").select("*").eq("id", data.booking_id).execute()
     booking = res.data[0] if res.data else None
     if not booking:
         raise HTTPException(404, "Booking not found")
+
+    # Handle zero-amount free booking flow gracefully without calling payment gateway
+    if booking["total_amount"] <= 0:
+        if booking["status"] != "confirmed":
+            reference = f"FREE_{uuid.uuid4().hex[:12]}"
+            payment_doc = {
+                "id": str(uuid.uuid4()),
+                "booking_id": data.booking_id,
+                "reference": reference,
+                "amount": 0.0,
+                "status": "success",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await supabase.table("payments").insert(payment_doc).execute()
+            
+            table_number = await auto_assign_table(booking["graduation_date"])
+            await supabase.table("bookings").update({
+                "status": "confirmed",
+                "table_number": table_number,
+                "payment_reference": reference
+            }).eq("id", data.booking_id).execute()
+            
+            res_updated = await supabase.table("bookings").select("*").eq("id", data.booking_id).execute()
+            booking = res_updated.data[0] if res_updated.data else booking
+            await send_confirmation_email(booking)
+            await send_confirmation_sms(booking)
+            
+        redirect_url = data.callback_url or f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/payment/callback"
+        return {
+            "authorization_url": f"{redirect_url}?test=true&booking_id={data.booking_id}&code={booking.get('reservation_code', '')}",
+            "reference": booking.get("payment_reference", "FREE")
+        }
+
     if not MOOLRE_USERNAME or not MOOLRE_ACCOUNT_NUMBER:
         raise HTTPException(500, "Moolre not configured. Please add Moolre credentials to backend .env file.")
 
@@ -756,6 +813,7 @@ async def initialize_payment(data: PaymentInit):
         }
     raise HTTPException(400, result.get("message", "Payment initialization failed"))
 
+
 @api_router.get("/payments/verify/{reference}")
 async def verify_payment(reference: str):
     """Check DB for a confirmed payment by Moolre externalref.
@@ -808,6 +866,7 @@ async def verify_payment(reference: str):
             logger.error(f"Moolre status check error for {reference}: {e}")
 
     return {"status": "pending", "message": "Payment not yet confirmed"}
+
 async def _confirm_payment_by_reference(reference: str):
     """Shared logic: mark payment success, confirm booking, send notifications.
     
@@ -829,36 +888,33 @@ async def _confirm_payment_by_reference(reference: str):
     if not booking:
         return None
 
-    # FIX: Re-check booking status after fetching to guard against concurrent confirms.
+    # Idempotency check: if booking is already confirmed, return early
     if booking["status"] == "confirmed":
         return booking
 
-    # FIX: Re-validate stock before decrementing to guard against race conditions
-    # where multiple concurrent bookings depleted stock between creation and payment.
-    for sel in booking.get("selections", []):
-        res_prod = await supabase.table("products").select("stock").eq("id", sel["product_id"]).execute()
-        if res_prod.data:
-            available = res_prod.data[0]["stock"]
-            qty = sel.get("quantity", 0)
-            if available < qty:
-                logger.error(
-                    f"Stock depleted for product {sel['product_id']} during payment confirmation. "
-                    f"Available: {available}, Required: {qty}. Booking {booking['id']} confirmed but stock not decremented."
-                )
-                # Don't block confirmation — payment was made — but log and skip decrement
-                continue
-            await adjust_product_stock(sel["product_id"], -qty)
-        else:
-            logger.warning(f"Product {sel['product_id']} not found during stock adjustment for booking {booking['id']}")
-
-    table_number = await auto_assign_table()
-    await supabase.table("bookings").update({
+    # Assign table and attempt to update booking status to confirmed.
+    # Condition: status must be pending to prevent double-confirmation under concurrency.
+    table_number = await auto_assign_table(booking["graduation_date"])
+    update_res = await supabase.table("bookings").update({
         "status": "confirmed",
         "table_number": table_number
-    }).eq("id", payment["booking_id"]).execute()
+    }).eq("id", payment["booking_id"]).eq("status", "pending").execute()
     
-    res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
-    updated = res_updated.data[0] if res_updated.data else None
+    if not update_res.data:
+        # Already confirmed by concurrent process
+        res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
+        return res_updated.data[0] if res_updated.data else None
+
+    # We successfully updated status to confirmed. Now perform side effects exactly once:
+    # 1. Adjust product stock
+    for sel in booking.get("selections", []):
+        await adjust_product_stock(sel["product_id"], -sel["quantity"])
+
+    # Fetch final updated booking state to include table number and status
+    res_final = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
+    updated = res_final.data[0] if res_final.data else None
+
+    # 2. Send email & SMS notifications
     await send_confirmation_email(updated)
     await send_confirmation_sms(updated)
     return updated
@@ -869,8 +925,7 @@ async def test_complete_payment(booking_id: str):
     booking = res_book.data[0] if res_book.data else None
     if not booking:
         raise HTTPException(404, "Booking not found")
-    # FIX: Idempotency guard — if already confirmed, return early without
-    # decrementing stock or sending duplicate emails.
+        
     if booking["status"] == "confirmed":
         return {"status": "already_confirmed", "booking": serialize_doc(booking)}
 
@@ -885,27 +940,20 @@ async def test_complete_payment(booking_id: str):
     }
     await supabase.table("payments").insert(payment_doc).execute()
 
-    # FIX: Validate and decrement stock before confirming, same as production path.
-    # The previous code skipped stock checking, allowing negative stock.
-    for sel in booking.get("selections", []):
-        res_prod = await supabase.table("products").select("stock").eq("id", sel["product_id"]).execute()
-        if res_prod.data:
-            available = res_prod.data[0]["stock"]
-            qty = sel.get("quantity", 0)
-            if available < qty:
-                logger.warning(
-                    f"[test-complete] Insufficient stock for product {sel['product_id']}. "
-                    f"Available: {available}, Required: {qty}. Proceeding anyway (test mode)."
-                )
-        await adjust_product_stock(sel["product_id"], -sel["quantity"])
-
-    table_number = await auto_assign_table()
-    await supabase.table("bookings").update({
+    table_number = await auto_assign_table(booking["graduation_date"])
+    update_res = await supabase.table("bookings").update({
         "status": "confirmed",
         "table_number": table_number,
         "payment_reference": reference
-    }).eq("id", booking_id).execute()
+    }).eq("id", booking_id).eq("status", "pending").execute()
     
+    if not update_res.data:
+        res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
+        return {"status": "already_confirmed", "booking": serialize_doc(res_updated.data[0])}
+
+    for sel in booking.get("selections", []):
+        await adjust_product_stock(sel["product_id"], -sel["quantity"])
+
     res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
     updated = res_updated.data[0] if res_updated.data else None
     await send_confirmation_email(updated)
@@ -934,9 +982,12 @@ async def moolre_webhook(request: Request):
             logger.error(f"Moolre webhook confirm error: {e}")
     return {"status": "ok"}
 
+
 @api_router.get("/bookings/lookup/{reservation_code}")
 async def get_booking_by_code(reservation_code: str):
-    res = await supabase.table("bookings").select("*").eq("reservation_code", reservation_code).execute()
+    code = reservation_code.upper().strip()
+    res = await supabase.table("bookings").select("*").eq("reservation_code", code).execute()
+
     booking = res.data[0] if res.data else None
     if not booking:
         raise HTTPException(404, "Booking not found")
@@ -1009,9 +1060,19 @@ async def admin_add_product(data: ProductCreate, admin=Depends(get_current_admin
 async def admin_update_product(product_id: str, data: dict, admin=Depends(get_current_admin)):
     allowed = {"name", "category", "price", "stock", "vendor", "is_active"}
     update = {k: v for k, v in data.items() if k in allowed}
-    # FIX: Reject empty updates to avoid a no-op DB call
+    # Reject empty updates to avoid a no-op DB call
     if not update:
         raise HTTPException(400, "No valid fields provided for update")
+        
+    if "price" in update:
+        price = update["price"]
+        if not isinstance(price, (int, float)) or price < 0:
+            raise HTTPException(400, "Price must be a non-negative number")
+    if "stock" in update:
+        stock = update["stock"]
+        if not isinstance(stock, int) or stock < 0:
+            raise HTTPException(400, "Stock must be a non-negative integer")
+
     res = await supabase.table("products").update(update).eq("id", product_id).execute()
     if not res.data:
         raise HTTPException(404, "Product not found")
@@ -1034,7 +1095,16 @@ async def admin_get_dates(admin=Depends(get_current_admin)):
 
 @api_router.post("/admin/dates")
 async def admin_create_date(data: dict, admin=Depends(get_current_admin)):
-    doc = {"id": str(uuid.uuid4()), "date_label": data.get("date_label", ""), "is_active": True}
+    date_label = data.get("date_label", "").strip()
+    if not date_label:
+        raise HTTPException(400, "date_label cannot be empty")
+        
+    # Check if a date with this label already exists
+    exist_res = await supabase.table("graduation_dates").select("id").eq("date_label", date_label).execute()
+    if exist_res.data:
+        raise HTTPException(400, f"Graduation date '{date_label}' already exists")
+
+    doc = {"id": str(uuid.uuid4()), "date_label": date_label, "is_active": True}
     await supabase.table("graduation_dates").insert(doc).execute()
     return {"id": doc["id"], "message": "Date created"}
 
@@ -1042,9 +1112,24 @@ async def admin_create_date(data: dict, admin=Depends(get_current_admin)):
 async def admin_update_date(date_id: str, data: dict, admin=Depends(get_current_admin)):
     allowed = {"date_label", "is_active"}
     update = {k: v for k, v in data.items() if k in allowed}
-    # FIX: Reject empty updates — mirrors the guard already on /admin/products/{id}.
+    # Reject empty updates
     if not update:
         raise HTTPException(400, "No valid fields provided for update")
+        
+    if "date_label" in update:
+        date_label = update["date_label"].strip()
+        if not date_label:
+            raise HTTPException(400, "date_label cannot be empty")
+        update["date_label"] = date_label
+        
+        # Check if another date has this label
+        exist_res = await supabase.table("graduation_dates").select("id")\
+            .eq("date_label", date_label)\
+            .neq("id", date_id)\
+            .execute()
+        if exist_res.data:
+            raise HTTPException(400, f"Graduation date '{date_label}' already exists")
+
     res = await supabase.table("graduation_dates").update(update).eq("id", date_id).execute()
     if not res.data:
         raise HTTPException(404, "Date not found")
@@ -1072,15 +1157,32 @@ async def admin_delete_date(date_id: str, admin=Depends(get_current_admin)):
 
 @api_router.post("/admin/tables/assign")
 async def admin_assign_table(data: TableAssign, admin=Depends(get_current_admin)):
-    # FIX: Treat empty string as null to properly clear table assignments.
-    # An empty string would not be caught by SQL IS NULL checks, breaking
-    # auto_assign_table() which filters on NOT NULL table numbers.
     table_value = data.table_number if data.table_number else None
+    
+    # We should get the booking first to know its graduation date
+    res_book = await supabase.table("bookings").select("*").eq("id", data.booking_id).execute()
+    booking = res_book.data[0] if res_book.data else None
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+        
+    if table_value:
+        # Check if this table is already assigned to another confirmed booking on the same graduation date
+        conflict_res = await supabase.table("bookings").select("id, graduate_name")\
+            .eq("graduation_date", booking["graduation_date"])\
+            .eq("table_number", table_value)\
+            .eq("status", "confirmed")\
+            .neq("id", data.booking_id)\
+            .execute()
+        if conflict_res.data:
+            conflict_name = conflict_res.data[0].get("graduate_name", "another graduate")
+            raise HTTPException(400, f"Table {table_value} is already assigned to {conflict_name} on {booking['graduation_date']}.")
+            
     res = await supabase.table("bookings").update({"table_number": table_value}).eq("id", data.booking_id).execute()
     if not res.data:
         raise HTTPException(404, "Booking not found")
     msg = f"Table {table_value} assigned" if table_value else "Table assignment cleared"
     return {"message": msg}
+
 
 @api_router.get("/admin/settings")
 async def admin_get_settings(admin=Depends(get_current_admin)):
