@@ -20,6 +20,11 @@ export default function PaymentCallback() {
   const [booking, setBooking] = useState(null);
 
   useEffect(() => {
+    // FIX: Use a cancelled flag so that if the user navigates away before the
+    // polling loop finishes, state updates are suppressed and a second loop
+    // started on re-mount doesn't run concurrently with the first.
+    let cancelled = false;
+
     const verify = async () => {
       const reference = searchParams.get("reference") || searchParams.get("trxref");
       const isTest = searchParams.get("test") === "true";
@@ -31,20 +36,21 @@ export default function PaymentCallback() {
         try {
           if (code) {
             const res = await axios.get(`${API}/bookings/lookup/${code}`);
-            setBooking(res.data);
-            setStatus("success");
+            if (!cancelled) { setBooking(res.data); setStatus("success"); }
           } else {
-            setStatus("success");
+            if (!cancelled) setStatus("success");
           }
         } catch {
-          setStatus("success");
-          setBooking({ reservation_code: code || "TEST", table_number: "T1" });
+          if (!cancelled) {
+            setStatus("success");
+            setBooking({ reservation_code: code || "TEST", table_number: "T1" });
+          }
         }
         return;
       }
 
       if (!reference) {
-        setStatus("failed");
+        if (!cancelled) setStatus("failed");
         return;
       }
 
@@ -53,15 +59,21 @@ export default function PaymentCallback() {
       const RETRY_DELAY_MS = 3000;
 
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        if (cancelled) return;
         try {
           const res = await axios.get(`${API}/payments/verify/${reference}`);
           if (res.data.status === "success") {
-            setBooking(res.data.booking);
-            setStatus("success");
+            if (!cancelled) { setBooking(res.data.booking); setStatus("success"); }
             return;
           }
-        } catch {
-          // Network error — keep retrying
+        } catch (err) {
+          // FIX: 404 means the payment reference doesn't exist — stop retrying immediately.
+          // Previously, this would silently retry 8 times over 24 seconds for invalid references.
+          if (err.response?.status === 404) {
+            if (!cancelled) setStatus("failed");
+            return;
+          }
+          // Other network errors — keep retrying
         }
 
         if (attempt < MAX_RETRIES) {
@@ -70,9 +82,13 @@ export default function PaymentCallback() {
       }
 
       // All retries exhausted
-      setStatus("failed");
+      if (!cancelled) setStatus("failed");
     };
+
     verify();
+
+    // Cleanup: mark cancelled so any in-flight async work is ignored on unmount
+    return () => { cancelled = true; };
   }, [searchParams]);
 
   const copyCode = () => {

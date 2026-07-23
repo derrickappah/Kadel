@@ -149,12 +149,24 @@ export default function AdminDashboard() {
       toast.error("Please fill all required fields");
       return;
     }
+    const parsedPrice = parseFloat(productForm.price);
+    const parsedStock = parseInt(productForm.stock);
+    // FIX: Validate price > 0 and stock >= 0 on the client before sending to
+    // the backend, to prevent creating unusable products that can never be purchased.
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      toast.error("Price must be greater than 0");
+      return;
+    }
+    if (isNaN(parsedStock) || parsedStock < 0) {
+      toast.error("Stock must be 0 or more");
+      return;
+    }
     try {
       const data = {
         name: productForm.name,
         category: productForm.category,
-        price: parseFloat(productForm.price),
-        stock: parseInt(productForm.stock),
+        price: parsedPrice,
+        stock: parsedStock,
         vendor: productForm.vendor,
       };
       if (editProduct) {
@@ -167,7 +179,7 @@ export default function AdminDashboard() {
       setProductDialog(false);
       fetchAll();
     } catch (err) {
-      toast.error("Failed to save product");
+      toast.error(err.response?.data?.detail || "Failed to save product");
     }
   };
 
@@ -214,10 +226,16 @@ export default function AdminDashboard() {
   };
 
   const assignTable = async () => {
-    if (!tableForm.table_number) { toast.error("Enter table number"); return; }
     try {
-      await axios.post(`${API}/admin/tables/assign`, tableForm, authHeaders());
-      toast.success("Table assigned");
+      // FIX: Allow clearing a single booking's table by sending null when the
+      // input is empty. Previously the guard "if (!tableForm.table_number)"
+      // blocked clearing, forcing admins to use bulk-clear for a single booking.
+      const tableValue = tableForm.table_number.trim() || null;
+      await axios.post(`${API}/admin/tables/assign`, {
+        booking_id: tableForm.booking_id,
+        table_number: tableValue,
+      }, authHeaders());
+      toast.success(tableValue ? `Table ${tableValue} assigned` : "Table assignment cleared");
       setTableDialog(false);
       fetchAll();
     } catch {
@@ -231,7 +249,10 @@ export default function AdminDashboard() {
     try {
       await Promise.all(
         selectedBookings.map(id =>
-          axios.post(`${API}/admin/tables/assign`, { booking_id: id, table_number: "" }, authHeaders())
+          // FIX: Send null instead of empty string "" to properly clear table numbers.
+          // Empty string is not NULL in SQL, so auto_assign_table() (which filters on
+          // NOT NULL) would still count cleared tables, causing incorrect table numbering.
+          axios.post(`${API}/admin/tables/assign`, { booking_id: id, table_number: null }, authHeaders())
         )
       );
       toast.success("Table assignments cleared");
@@ -244,13 +265,21 @@ export default function AdminDashboard() {
 
   const clearSearch = () => setSearchQuery("");
 
-  // Settings
   const saveSettings = async () => {
+    const fee = parseFloat(settings.event_fee_per_person);
+    // FIX: Validate event fee is non-negative before saving. A negative fee
+    // would result in a negative base_cost being sent to the backend, which
+    // now also rejects it with HTTP 400 — but catching it client-side gives
+    // the admin a clearer error message.
+    if (isNaN(fee) || fee < 0) {
+      toast.error("Event fee must be 0 or greater");
+      return;
+    }
     try {
-      await axios.patch(`${API}/admin/settings`, settings, authHeaders());
+      await axios.patch(`${API}/admin/settings`, { event_fee_per_person: fee }, authHeaders());
       toast.success("Settings saved");
-    } catch {
-      toast.error("Failed to save settings");
+    } catch (err) {
+      toast.error(err.response?.data?.detail || "Failed to save settings");
     }
   };
 
@@ -271,9 +300,10 @@ export default function AdminDashboard() {
     const courseMap = {};
 
     confirmedBookings.forEach(b => {
-      const baseFeePerPerson = settings.event_fee_per_person || 1;
-      const baseFeeForBooking = b.attendees_count * baseFeePerPerson;
-      admissionRevenue += baseFeeForBooking;
+      // FIX: Use the stored event_fee (admission fee at booking time) rather than
+      // recalculating from current settings. This prevents historical revenue from
+      // changing if the admin updates the event fee rate after bookings are made.
+      admissionRevenue += b.event_fee || 0;
 
       const courseName = b.course || "Other Program";
       courseMap[courseName] = (courseMap[courseName] || 0) + 1;
@@ -327,7 +357,10 @@ export default function AdminDashboard() {
       topVendors,
       popularCourses
     };
-  }, [bookings, products, settings]);
+  // FIX: Remove `settings` from the dependency array — it was never used in the
+  // computation (admissionRevenue now reads b.event_fee, not settings.event_fee_per_person).
+  // Keeping it caused unnecessary re-runs whenever settings changed.
+  }, [bookings, products]);
 
   const getProductCategory = useCallback((productId, productName) => {
     const prod = products.find(p => p.id === productId || p.name === productName);
@@ -418,17 +451,29 @@ export default function AdminDashboard() {
       ? bookings.filter(b => selectedBookings.includes(b.id))
       : bookings;
 
+    // FIX: Properly escape CSV fields that contain commas, double-quotes, or
+    // newlines. Without escaping, a course name like "B.Sc, Computer Science"
+    // would split into two columns, corrupting every subsequent field in the row.
+    const escapeCSV = (val) => {
+      if (val == null) return "";
+      const str = String(val);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
     const headers = ["Reservation Code", "Graduate Name", "Program", "Date", "Guests Count", "Food Ordered", "Total Paid (GHC)", "Table Assigned", "Status"];
     const rows = list.map(b => [
-      b.reservation_code,
-      b.graduate_name,
-      b.course,
-      b.graduation_date,
-      b.attendees_count,
+      escapeCSV(b.reservation_code),
+      escapeCSV(b.graduate_name),
+      escapeCSV(b.course),
+      escapeCSV(b.graduation_date),
+      escapeCSV(b.attendees_count),
       b.wants_food ? "Yes" : "No",
-      b.total_amount?.toFixed(2),
-      b.table_number || "Pending",
-      b.status
+      escapeCSV(b.total_amount?.toFixed(2)),
+      escapeCSV(b.table_number || "Pending"),
+      escapeCSV(b.status)
     ]);
 
     const csvContent = "data:text/csv;charset=utf-8,"
@@ -1763,14 +1808,14 @@ export default function AdminDashboard() {
             <DialogTitle className="font-display text-lg font-bold text-foreground">Assign Table Number</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Table Reference *</Label>
+            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Table Reference</Label>
             <Input
               value={tableForm.table_number}
               onChange={e => setTableForm(f => ({ ...f, table_number: e.target.value }))}
               placeholder="e.g. Table T23"
               className="h-10 rounded-xl border-border/80 text-sm font-semibold"
             />
-            <p className="text-[10px] text-muted-foreground">Assign a specific layout table number to this reservation code.</p>
+            <p className="text-[10px] text-muted-foreground">Assign a table number to this reservation. Leave blank to clear the current assignment.</p>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button variant="secondary" onClick={() => setTableDialog(false)} className="h-10 rounded-xl text-xs font-bold">

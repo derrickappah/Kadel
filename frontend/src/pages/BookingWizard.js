@@ -123,7 +123,21 @@ export default function BookingWizard() {
       if (!form.email.trim() || !form.email.includes("@")) { toast.error("Please enter a valid email"); return false; }
     }
     if (s === 1) {
+      // FIX: Validate that custom attendee count is a positive integer >= 1
+      if (attendeesOption === "more") {
+        const parsed = parseInt(customAttendees, 10);
+        if (!customAttendees || isNaN(parsed) || parsed < 1 || String(parsed) !== customAttendees.trim()) {
+          toast.error("Please enter a valid number of attendees (minimum 1)");
+          return false;
+        }
+      }
       if (attendeesCount < 1) { toast.error("Please enter valid number of attendees"); return false; }
+    }
+    if (s === 2) {
+      // FIX: Warn (but don't block) when catering is enabled but no items selected
+      if (wantsFood && selectionsList.length === 0) {
+        toast.warning("You enabled catering but haven't selected any items. You can continue, or go back to add items.");
+      }
     }
     return true;
   };
@@ -139,10 +153,16 @@ export default function BookingWizard() {
   };
 
   const handlePay = async () => {
-    if (totalCost <= 0) {
-      toast.error("Total must be greater than 0");
-      return;
+    // FIX: Re-run full validation for all steps before submitting.
+    // A user who navigates back (to step 0 or 1) after reaching step 3 could
+    // corrupt their form data; without re-validation the bad data reaches the API.
+    for (let s = 0; s <= 2; s++) {
+      if (!validateStep(s)) return;
     }
+    // FIX: Allow zero-cost bookings (free events) to proceed. The old guard
+    // `totalCost <= 0` blocked legitimate free-entry events where eventFee = 0.
+    // The backend will create the booking; payment initialization will fail for
+    // zero amounts and the test-complete path handles them gracefully.
     setIsSubmitting(true);
     try {
       // Create booking
@@ -173,7 +193,7 @@ export default function BookingWizard() {
           toast.error("Payment gateway not configured. Using test mode...");
           // Use test-complete endpoint
           const testRes = await axios.post(`${API}/payments/test-complete/${bookingId}`);
-          if (testRes.data.status === "success") {
+          if (testRes.data.status === "success" || testRes.data.status === "already_confirmed") {
             navigate(`/payment/callback?test=true&booking_id=${bookingId}&code=${testRes.data.booking.reservation_code}`);
           }
         } else {
@@ -565,7 +585,7 @@ export default function BookingWizard() {
             ) : (
               <Button
                 onClick={handlePay}
-                disabled={isSubmitting || totalCost <= 0}
+                disabled={isSubmitting}
                 className="h-11 px-6 rounded-xl font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm active:scale-95 transition-all duration-150"
                 data-testid="paystack-pay-button"
               >
