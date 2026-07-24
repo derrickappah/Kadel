@@ -722,6 +722,25 @@ async def initialize_payment(data: PaymentInit):
     if not booking:
         raise HTTPException(404, "Booking not found")
 
+    if booking["status"] == "confirmed":
+        raise HTTPException(400, "Booking is already confirmed")
+
+    # Validate stock before redirecting to payment gateway
+    if booking.get("wants_food"):
+        for sel in booking.get("selections", []):
+            res_prod = await supabase.table("products").select("stock, name, is_active").eq("id", sel["product_id"]).execute()
+            product = res_prod.data[0] if res_prod.data else None
+            if not product:
+                raise HTTPException(400, f"Product {sel['product_name']} not found")
+            if not product.get("is_active", True):
+                raise HTTPException(400, f"Product {product['name']} is no longer available")
+            if product["stock"] < sel["quantity"]:
+                raise HTTPException(
+                    400,
+                    f"Insufficient stock for {product['name']}. Only {product['stock']} available. "
+                    "Please modify your booking."
+                )
+
     # Handle zero-amount free booking flow gracefully without calling payment gateway
     if booking["total_amount"] <= 0:
         if booking["status"] != "confirmed":
@@ -736,17 +755,7 @@ async def initialize_payment(data: PaymentInit):
             }
             await supabase.table("payments").insert(payment_doc).execute()
             
-            table_number = await auto_assign_table(booking["graduation_date"])
-            await supabase.table("bookings").update({
-                "status": "confirmed",
-                "table_number": table_number,
-                "payment_reference": reference
-            }).eq("id", data.booking_id).execute()
-            
-            res_updated = await supabase.table("bookings").select("*").eq("id", data.booking_id).execute()
-            booking = res_updated.data[0] if res_updated.data else booking
-            await send_confirmation_email(booking)
-            await send_confirmation_sms(booking)
+            booking = await _confirm_booking_internal(booking, reference)
             
         redirect_url = data.callback_url or f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/payment/callback"
         return {
@@ -867,14 +876,98 @@ async def verify_payment(reference: str):
 
     return {"status": "pending", "message": "Payment not yet confirmed"}
 
-async def _confirm_payment_by_reference(reference: str):
-    """Shared logic: mark payment success, confirm booking, send notifications.
-    
-    FIX (race condition): We update payment status first, then re-fetch the booking
-    status. Because multiple paths can call this function concurrently (webhook +
-    client polling), we do a final idempotency check on the booking status after
-    the payment update, not before, to minimise the race window.
+async def _confirm_booking_internal(booking, reference: str):
+    """Confirm a booking, assign a unique table, adjust stock, and send notifications.
+    Uses retry loop with collision detection to prevent duplicate table assignments.
     """
+    booking_id = booking["id"]
+    
+    # Idempotency guard: check if already confirmed
+    if booking["status"] == "confirmed":
+        return booking
+
+    max_retries = 5
+    confirmed_booking = None
+    
+    for attempt in range(max_retries):
+        table_number = await auto_assign_table(booking["graduation_date"])
+        
+        # Check if table already taken
+        conflict_res = await supabase.table("bookings").select("id")\
+            .eq("graduation_date", booking["graduation_date"])\
+            .eq("table_number", table_number)\
+            .eq("status", "confirmed")\
+            .execute()
+            
+        if conflict_res.data:
+            logger.info(f"Table {table_number} taken concurrently. Retrying (attempt {attempt + 1}).")
+            continue
+            
+        # Update status and assign table
+        update_res = await supabase.table("bookings").update({
+            "status": "confirmed",
+            "table_number": table_number,
+            "payment_reference": reference
+        }).eq("id", booking_id).eq("status", "pending").execute()
+        
+        if not update_res.data:
+            # Already confirmed by a concurrent process
+            res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
+            return res_updated.data[0] if res_updated.data else None
+            
+        # Double check for concurrent collisions
+        double_check = await supabase.table("bookings").select("id")\
+            .eq("graduation_date", booking["graduation_date"])\
+            .eq("table_number", table_number)\
+            .eq("status", "confirmed")\
+            .execute()
+            
+        if len(double_check.data) > 1:
+            # Collision! Sort IDs, check if we are first
+            ids = sorted([row["id"] for row in double_check.data])
+            my_index = ids.index(booking_id)
+            if my_index > 0:
+                # We lost. Revert and retry
+                logger.warning(f"Table collision for {table_number}. Reverting booking {booking_id} and retrying.")
+                await supabase.table("bookings").update({
+                    "status": "pending",
+                    "table_number": None,
+                    "payment_reference": None
+                }).eq("id", booking_id).execute()
+                continue
+                
+        # We won!
+        confirmed_booking = update_res.data[0]
+        break
+    else:
+        # Reached max retries, confirm without table
+        logger.error(f"Failed to assign unique table for {booking_id} after {max_retries} attempts.")
+        await supabase.table("bookings").update({
+            "status": "confirmed",
+            "table_number": None,
+            "payment_reference": reference
+        }).eq("id", booking_id).execute()
+        res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
+        confirmed_booking = res_updated.data[0] if res_updated.data else None
+
+    if confirmed_booking:
+        # Perform side effects exactly once
+        # 1. Adjust product stock
+        for sel in booking.get("selections", []):
+            await adjust_product_stock(sel["product_id"], -sel["quantity"])
+            
+        # Fetch latest booking state
+        res_final = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
+        updated = res_final.data[0] if res_final.data else confirmed_booking
+        
+        # 2. Send email & SMS notifications
+        await send_confirmation_email(updated)
+        await send_confirmation_sms(updated)
+        return updated
+        
+    return None
+
+async def _confirm_payment_by_reference(reference: str):
     # Mark the payment as successful
     await supabase.table("payments").update({"status": "success"}).eq("reference", reference).execute()
     
@@ -887,37 +980,8 @@ async def _confirm_payment_by_reference(reference: str):
     booking = res_book.data[0] if res_book.data else None
     if not booking:
         return None
-
-    # Idempotency check: if booking is already confirmed, return early
-    if booking["status"] == "confirmed":
-        return booking
-
-    # Assign table and attempt to update booking status to confirmed.
-    # Condition: status must be pending to prevent double-confirmation under concurrency.
-    table_number = await auto_assign_table(booking["graduation_date"])
-    update_res = await supabase.table("bookings").update({
-        "status": "confirmed",
-        "table_number": table_number
-    }).eq("id", payment["booking_id"]).eq("status", "pending").execute()
-    
-    if not update_res.data:
-        # Already confirmed by concurrent process
-        res_updated = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
-        return res_updated.data[0] if res_updated.data else None
-
-    # We successfully updated status to confirmed. Now perform side effects exactly once:
-    # 1. Adjust product stock
-    for sel in booking.get("selections", []):
-        await adjust_product_stock(sel["product_id"], -sel["quantity"])
-
-    # Fetch final updated booking state to include table number and status
-    res_final = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
-    updated = res_final.data[0] if res_final.data else None
-
-    # 2. Send email & SMS notifications
-    await send_confirmation_email(updated)
-    await send_confirmation_sms(updated)
-    return updated
+        
+    return await _confirm_booking_internal(booking, reference)
 
 @api_router.post("/payments/test-complete/{booking_id}")
 async def test_complete_payment(booking_id: str):
@@ -940,31 +1004,28 @@ async def test_complete_payment(booking_id: str):
     }
     await supabase.table("payments").insert(payment_doc).execute()
 
-    table_number = await auto_assign_table(booking["graduation_date"])
-    update_res = await supabase.table("bookings").update({
-        "status": "confirmed",
-        "table_number": table_number,
-        "payment_reference": reference
-    }).eq("id", booking_id).eq("status", "pending").execute()
-    
-    if not update_res.data:
-        res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
-        return {"status": "already_confirmed", "booking": serialize_doc(res_updated.data[0])}
-
-    for sel in booking.get("selections", []):
-        await adjust_product_stock(sel["product_id"], -sel["quantity"])
-
-    res_updated = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
-    updated = res_updated.data[0] if res_updated.data else None
-    await send_confirmation_email(updated)
-    await send_confirmation_sms(updated)
+    updated = await _confirm_booking_internal(booking, reference)
     return {"status": "success", "booking": serialize_doc(updated)}
 
 @api_router.post("/moolre/webhook")
 async def moolre_webhook(request: Request):
     """Handle Moolre payment callback when a payment completes"""
+    body = await request.body()
+    
+    # Signature Verification
+    if MOOLRE_PRIVATE_KEY:
+        signature = request.headers.get("x-moolre-signature") or request.headers.get("x-signature", "")
+        computed = hmac.new(
+            MOOLRE_PRIVATE_KEY.encode('utf-8'),
+            body,
+            hashlib.sha256
+        ).hexdigest()
+        
+        if not hmac.compare_digest(computed, signature):
+            logger.warning("Moolre webhook received invalid signature")
+            raise HTTPException(401, "Invalid signature")
+            
     try:
-        body = await request.body()
         event = json.loads(body)
         logger.info(f"Moolre webhook received: {event}")
     except Exception:

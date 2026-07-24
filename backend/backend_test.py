@@ -249,9 +249,11 @@ class KaDelAPITester:
 
         # Test table assignment
         if self.test_booking_id:
+            import random
+            test_table = f"T{random.randint(1000, 999999)}"
             table_data = {
                 "booking_id": self.test_booking_id,
-                "table_number": "T99"
+                "table_number": test_table
             }
             self.run_test("Assign table", "POST", "admin/tables/assign", 200, data=table_data, headers=headers)
 
