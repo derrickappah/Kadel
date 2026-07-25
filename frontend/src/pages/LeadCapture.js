@@ -9,45 +9,18 @@ import {
   Mail, 
   Phone, 
   User, 
-  Building2, 
   BookOpen, 
-  CalendarDays, 
-  MessageSquare, 
   ArrowRight, 
-  ShieldCheck, 
   BellRing, 
-  Gift, 
   Share2, 
-  Check,
   ChevronLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-
-const INSTITUTIONS = [
-  "Kwame Nkrumah University of Science and Technology (KNUST)",
-  "University of Ghana (UG, Legon)",
-  "University of Cape Coast (UCC)",
-  "Ghana Institute of Management and Public Administration (GIMPA)",
-  "University of Professional Studies, Accra (UPSA)",
-  "University of Mines and Technology (UMaT)",
-  "Services Colleges / AAMUSTED",
-  "University of Environment and Sustainable Development (UESD)",
-  "Other Institution"
-];
-
-const GUEST_RANGES = [
-  { label: "5 - 10 Guests", value: 10 },
-  { label: "10 - 15 Guests", value: 15 },
-  { label: "15 - 20 Guests", value: 20 },
-  { label: "20 - 30 Guests", value: 25 },
-  { label: "30+ VIP Group", value: 35 }
-];
 
 export default function LeadCapture() {
   const navigate = useNavigate();
@@ -55,12 +28,7 @@ export default function LeadCapture() {
     fullName: "",
     email: "",
     phone: "",
-    institution: INSTITUTIONS[0],
-    customInstitution: "",
-    course: "",
-    estimatedGuests: 10,
-    expectedPeriod: "Late 2026 (Nov - Dec)",
-    notes: ""
+    course: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -81,19 +49,15 @@ export default function LeadCapture() {
 
     setLoading(true);
 
-    const finalInstitution = formData.institution === "Other Institution" && formData.customInstitution
-      ? formData.customInstitution
-      : formData.institution;
-
     const payload = {
       full_name: formData.fullName,
       email: formData.email,
       phone: formData.phone,
-      institution: finalInstitution,
+      institution: "General",
       course: formData.course,
-      estimated_guests: parseInt(formData.estimatedGuests, 10),
-      expected_graduation_period: formData.expectedPeriod,
-      notes: formData.notes
+      estimated_guests: 10,
+      expected_graduation_period: "Pending Announcement",
+      notes: ""
     };
 
     try {
@@ -172,7 +136,7 @@ export default function LeadCapture() {
                 </h1>
 
                 <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
-                  Official graduation dates are being finalized. Express your interest today to secure early access, instant notifications, and exclusive seating options before public booking opens.
+                  Official graduation dates are being finalized. Express your interest today to secure early access and instant notifications before public booking opens.
                 </p>
 
                 {/* Kente Accent */}
@@ -186,7 +150,7 @@ export default function LeadCapture() {
               </div>
 
               {/* Form Layout */}
-              <div className="max-w-2xl mx-auto w-full">
+              <div className="max-w-xl mx-auto w-full">
                 {/* Form Card */}
                 <Card className="bg-card border-border/80 rounded-3xl shadow-xl overflow-hidden">
                   <CardHeader className="bg-muted/30 border-b border-border/60 pb-6">
@@ -195,7 +159,7 @@ export default function LeadCapture() {
                       Priority Reservation Lead Form
                     </CardTitle>
                     <CardDescription className="text-sm">
-                      Fill in your contact and guest details to get notified the second dates drop.
+                      Fill in your details to get notified the second official graduation dates drop.
                     </CardDescription>
                   </CardHeader>
 
@@ -255,46 +219,11 @@ export default function LeadCapture() {
                         </div>
                       </div>
 
-                      {/* Institution */}
-                      <div className="space-y-2">
-                        <Label htmlFor="institution" className="text-sm font-semibold flex items-center gap-1.5">
-                          <Building2 className="h-4 w-4 text-muted-foreground" />
-                          University / Institution
-                        </Label>
-                        <select
-                          id="institution"
-                          name="institution"
-                          value={formData.institution}
-                          onChange={handleChange}
-                          className="w-full h-11 px-3 rounded-xl border border-border/80 bg-background text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-                        >
-                          {INSTITUTIONS.map((inst, i) => (
-                            <option key={i} value={inst}>{inst}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {formData.institution === "Other Institution" && (
-                        <div className="space-y-2">
-                          <Label htmlFor="customInstitution" className="text-xs font-medium text-muted-foreground">
-                            Specify Your Institution Name
-                          </Label>
-                          <Input
-                            id="customInstitution"
-                            name="customInstitution"
-                            placeholder="e.g. Ashesi University"
-                            value={formData.customInstitution}
-                            onChange={handleChange}
-                            className="rounded-xl h-10 border-border/80"
-                          />
-                        </div>
-                      )}
-
                       {/* Course */}
                       <div className="space-y-2">
                         <Label htmlFor="course" className="text-sm font-semibold flex items-center gap-1.5">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          Course / Program of Study
+                          Course / Program of Study (Optional)
                         </Label>
                         <Input
                           id="course"
@@ -303,71 +232,6 @@ export default function LeadCapture() {
                           value={formData.course}
                           onChange={handleChange}
                           className="rounded-xl h-11 border-border/80"
-                        />
-                      </div>
-
-                      {/* Guest Count Selection */}
-                      <div className="space-y-2.5">
-                        <Label className="text-sm font-semibold flex items-center gap-1.5">
-                          <Users className="h-4 w-4 text-muted-foreground" />
-                          Estimated Number of Attendees / Guests
-                        </Label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                          {GUEST_RANGES.map((g, i) => {
-                            const isSelected = formData.estimatedGuests === g.value;
-                            return (
-                              <button
-                                key={i}
-                                type="button"
-                                onClick={() => setFormData((prev) => ({ ...prev, estimatedGuests: g.value }))}
-                                className={`px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all text-center flex items-center justify-center gap-1.5 ${
-                                  isSelected 
-                                    ? "bg-primary text-primary-foreground border-primary shadow-sm" 
-                                    : "bg-background text-foreground border-border/80 hover:border-primary/50"
-                                }`}
-                              >
-                                {isSelected && <Check className="h-3.5 w-3.5" />}
-                                {g.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Expected Graduation Period */}
-                      <div className="space-y-2">
-                        <Label htmlFor="expectedPeriod" className="text-sm font-semibold flex items-center gap-1.5">
-                          <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                          Expected Graduation Session / Month
-                        </Label>
-                        <select
-                          id="expectedPeriod"
-                          name="expectedPeriod"
-                          value={formData.expectedPeriod}
-                          onChange={handleChange}
-                          className="w-full h-11 px-3 rounded-xl border border-border/80 bg-background text-sm font-medium focus:ring-2 focus:ring-primary focus:outline-none"
-                        >
-                          <option value="Late 2026 (Nov - Dec)">Late 2026 (November - December)</option>
-                          <option value="Early 2027 (Jan - April)">Early 2027 (January - April)</option>
-                          <option value="Mid 2027 (May - August)">Mid 2027 (May - August)</option>
-                          <option value="Unsure / Pending Announcement">Unsure / Pending Announcement</option>
-                        </select>
-                      </div>
-
-                      {/* Notes / Special Requests */}
-                      <div className="space-y-2">
-                        <Label htmlFor="notes" className="text-sm font-semibold flex items-center gap-1.5">
-                          <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                          Special Requests or Preferences (Optional)
-                        </Label>
-                        <Textarea
-                          id="notes"
-                          name="notes"
-                          placeholder="e.g., Preferred outdoor VIP seating, dietary requests, or specific catering questions..."
-                          value={formData.notes}
-                          onChange={handleChange}
-                          rows={3}
-                          className="rounded-xl border-border/80 resize-none text-sm"
                         />
                       </div>
 
@@ -422,7 +286,7 @@ export default function LeadCapture() {
                   </h2>
 
                   <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                    Thank you, <strong className="text-foreground">{submittedLead.data?.full_name}</strong>. We have registered your reservation interest for <strong className="text-foreground">{submittedLead.data?.institution}</strong>.
+                    Thank you, <strong className="text-foreground">{submittedLead.data?.full_name}</strong>. We have registered your table reservation interest.
                   </p>
                 </div>
 
@@ -439,9 +303,9 @@ export default function LeadCapture() {
                     <BellRing className="h-4 w-4 text-primary" /> What happens next?
                   </div>
                   <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                    <li>We track official announcements for <strong>{submittedLead.data?.institution}</strong>.</li>
+                    <li>We track official graduation announcements.</li>
                     <li>As soon as dates drop, we send an instant SMS & WhatsApp alert to <strong>{submittedLead.data?.phone}</strong>.</li>
-                    <li>You get a 24-hour head start to confirm your table selection before public release.</li>
+                    <li>You get priority access to confirm your table selection before public release.</li>
                   </ul>
                 </div>
 
