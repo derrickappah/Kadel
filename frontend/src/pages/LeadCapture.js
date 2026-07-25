@@ -185,10 +185,10 @@ export default function LeadCapture() {
                 </div>
               </div>
 
-              {/* Form & Benefits Layout */}
-              <div className="grid md:grid-cols-12 gap-8 items-start">
-                {/* Left Side: Form */}
-                <Card className="md:col-span-7 bg-card border-border/80 rounded-3xl shadow-xl overflow-hidden">
+              {/* Form Layout */}
+              <div className="max-w-2xl mx-auto w-full">
+                {/* Form Card */}
+                <Card className="bg-card border-border/80 rounded-3xl shadow-xl overflow-hidden">
                   <CardHeader className="bg-muted/30 border-b border-border/60 pb-6">
                     <CardTitle className="text-xl font-bold font-display flex items-center gap-2">
                       <Users className="h-5 w-5 text-primary" />
@@ -396,73 +396,6 @@ export default function LeadCapture() {
                     </form>
                   </CardContent>
                 </Card>
-
-                {/* Right Side: Benefits & Trust */}
-                <div className="md:col-span-5 space-y-6">
-                  {/* VIP Perks Card */}
-                  <Card className="bg-primary/5 border-primary/20 rounded-3xl p-6 space-y-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-md">
-                        <Gift className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-display font-bold text-foreground text-lg">Why Join Priority?</h3>
-                        <p className="text-xs text-muted-foreground">Benefits for waitlist members</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <BellRing className="h-3.5 w-3.5" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-foreground">Instant WhatsApp Alerts</h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed">Be notified the exact minute official dates are released so you don't miss out.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <ShieldCheck className="h-3.5 w-3.5" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-foreground">First Rights to Seating</h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed">Tables fill rapidly during graduation season. Priority leads get a 24-hour head start.</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
-                          <Gift className="h-3.5 w-3.5" />
-                        </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-foreground">Complimentary Table Perks</h4>
-                          <p className="text-xs text-muted-foreground leading-relaxed">Priority reservations receive complimentary personalized graduate table tags & drink upgrades.</p>
-                        </div>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Social Proof */}
-                  <Card className="bg-card border-border/80 rounded-3xl p-6 space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="flex -space-x-2">
-                        <div className="w-9 h-9 rounded-full bg-amber-500 text-white font-bold text-xs flex items-center justify-center border-2 border-background">AM</div>
-                        <div className="w-9 h-9 rounded-full bg-emerald-500 text-white font-bold text-xs flex items-center justify-center border-2 border-background">KO</div>
-                        <div className="w-9 h-9 rounded-full bg-indigo-500 text-white font-bold text-xs flex items-center justify-center border-2 border-background">NA</div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-foreground">Over 500+ Graduates Served</p>
-                        <p className="text-[11px] text-muted-foreground">Trusted for hassle-free graduation table celebrations</p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-muted-foreground italic border-l-2 border-primary/40 pl-3 py-1">
-                      "Joining the waitlist last year saved my family's celebration! As soon as KNUST announced dates, I got a text and booked the best table immediately."
-                    </p>
-                  </Card>
-                </div>
               </div>
             </motion.div>
           ) : (
