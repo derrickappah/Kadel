@@ -620,7 +620,7 @@ export default function AdminDashboard() {
         <div className="space-y-6">
           <div className="flex items-center justify-between px-2 pt-2">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.jpeg" alt="KaDel Logo" className="h-9 w-auto object-contain rounded-xl shadow-sm" />
+              <img src="/logo.png" alt="KaDel Logo" className="h-9 w-auto object-contain rounded-xl shadow-sm" />
               <span className="font-display font-extrabold text-2xl tracking-tight text-foreground flex items-center gap-2">
                 KaDel <span className="text-xs font-bold py-0.5 px-2 bg-primary/10 text-primary rounded-full">Admin</span>
               </span>

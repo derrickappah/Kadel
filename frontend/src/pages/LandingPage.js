@@ -261,7 +261,7 @@ export default function LandingPage() {
             {/* Brand Section */}
             <div className="md:col-span-2 space-y-4">
               <div className="flex items-center gap-3">
-                <img src="/logo.jpeg" alt="KaDel Logo" className="h-10 w-auto object-contain rounded-xl shadow-sm" />
+                <img src="/logo.png" alt="KaDel Logo" className="h-10 w-auto object-contain rounded-xl shadow-sm" />
                 <span className="font-display text-2xl font-extrabold tracking-wide text-primary">KaDel</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">

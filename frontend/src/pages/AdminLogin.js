@@ -73,7 +73,7 @@ export default function AdminLogin() {
         className="w-full max-w-[400px]"
       >
         <div className="text-center mb-8">
-          <img src="/logo.jpeg" alt="KaDel Logo" className="h-16 w-auto object-contain rounded-2xl mx-auto mb-3 shadow-md border border-border/50" />
+          <img src="/logo.png" alt="KaDel Logo" className="h-16 w-auto object-contain rounded-2xl mx-auto mb-3 shadow-md border border-border/50" />
           <h1 className="font-display text-4xl font-extrabold tracking-tight text-foreground">
             KaDel
           </h1>
