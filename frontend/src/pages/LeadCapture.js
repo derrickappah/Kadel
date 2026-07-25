@@ -124,33 +124,8 @@ export default function LeadCapture() {
               transition={{ duration: 0.4 }}
               className="space-y-10"
             >
-              {/* Header Hero Section */}
-              <div className="text-center max-w-2xl mx-auto space-y-4">
-                <Badge variant="secondary" className="px-4 py-1.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 gap-1.5 inline-flex items-center">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  Graduation Dates Releasing Soon
-                </Badge>
-
-                <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight text-foreground">
-                  Get Priority Access for Table Reservations
-                </h1>
-
-                <p className="text-muted-foreground text-base sm:text-lg leading-relaxed">
-                  Official graduation dates are being finalized. Express your interest today to secure early access and instant notifications before public booking opens.
-                </p>
-
-                {/* Kente Accent */}
-                <div className="flex justify-center pt-2">
-                  <div className="flex gap-0.5 h-1 w-20 rounded-full overflow-hidden">
-                    <div className="bg-[#FF3300] flex-1" />
-                    <div className="bg-[#FFCC00] flex-1" />
-                    <div className="bg-[#009933] flex-1" />
-                  </div>
-                </div>
-              </div>
-
               {/* Form Layout */}
-              <div className="max-w-xl mx-auto w-full">
+              <div className="max-w-xl mx-auto w-full pt-4">
                 {/* Form Card */}
                 <Card className="bg-card border-border/80 rounded-3xl shadow-xl overflow-hidden">
                   <CardHeader className="bg-muted/30 border-b border-border/60 pb-6">
