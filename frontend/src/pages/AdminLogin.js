@@ -73,14 +73,14 @@ export default function AdminLogin() {
         className="w-full max-w-[400px]"
       >
         <div className="text-center mb-8">
-          <img src="/logo.png" alt="KaDel Logo" className="h-16 w-auto object-contain rounded-2xl mx-auto mb-3 shadow-md border border-border/50" />
-          <h1 className="font-display text-4xl font-extrabold tracking-tight text-foreground">
+          <img src="/logo.png" alt="KaDel Logo" className="h-16 w-auto object-contain rounded-2xl mx-auto mb-1.5 shadow-md border border-border/50" />
+          <h1 className="font-display text-4xl font-extrabold tracking-tight text-black dark:text-white">
             KaDel
           </h1>
-          <p className="text-sm font-semibold text-muted-foreground mt-1.5 uppercase tracking-widest">
+          <p className="text-sm font-semibold text-muted-foreground mt-1 uppercase tracking-widest">
             Admin Portal
           </p>
-          <div className="kente-bar w-20 mx-auto mt-4" />
+          <div className="kente-bar w-20 mx-auto mt-3" />
         </div>
 
         <Card className="border-border/80 shadow-2xl rounded-3xl overflow-hidden bg-card/85 backdrop-blur-md">
