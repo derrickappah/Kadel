@@ -126,8 +126,7 @@ export default function LeadCapture() {
               <div className="max-w-xl mx-auto w-full pt-2 space-y-6">
                 {/* Header & Subtitle Outside Form */}
                 <div className="text-center space-y-2">
-                  <h1 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground flex items-center justify-center gap-2.5">
-                    <Users className="h-7 w-7 text-primary shrink-0" />
+                  <h1 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground text-center">
                     Priority Reservation Lead Form
                   </h1>
                   <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto leading-relaxed">
