@@ -260,8 +260,9 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             {/* Brand Section */}
             <div className="md:col-span-2 space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="font-display text-xl font-bold tracking-wide text-primary">KaDel</span>
+              <div className="flex items-center gap-3">
+                <img src="/logo.jpeg" alt="KaDel Logo" className="h-10 w-auto object-contain rounded-xl shadow-sm" />
+                <span className="font-display text-2xl font-extrabold tracking-wide text-primary">KaDel</span>
               </div>
               <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">
                 Reserve your table and select your preferred food and drinks to celebrate your graduation in style.

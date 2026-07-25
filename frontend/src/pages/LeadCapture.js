@@ -95,9 +95,7 @@ export default function LeadCapture() {
       <header className="border-b border-border/60 bg-card/80 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-md shadow-primary/20">
-              <GraduationCap className="h-5 w-5" />
-            </div>
+            <img src="/logo.jpeg" alt="KaDel Logo" className="h-9 w-auto object-contain rounded-xl shadow-sm" />
             <span className="font-display text-xl font-bold tracking-tight text-primary">KaDel</span>
           </div>
 
