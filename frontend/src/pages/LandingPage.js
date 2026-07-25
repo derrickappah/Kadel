@@ -39,7 +39,17 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-
+      {/* Top Waitlist Alert Banner */}
+      <div className="bg-amber-500/10 border-b border-amber-500/20 py-2.5 px-4 text-center text-xs sm:text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
+        <span>🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
+        <button
+          onClick={() => navigate('/leads')}
+          className="underline font-bold hover:text-primary transition-colors inline-flex items-center gap-1"
+          data-testid="banner-waitlist-btn"
+        >
+          Join Priority List <ArrowRight className="h-3.5 w-3.5" />
+        </button>
+      </div>
 
       {/* Hero */}
       <section 
@@ -70,26 +80,26 @@ export default function LandingPage() {
             </h1>
             
             <p className="text-base sm:text-lg md:text-xl text-zinc-200 max-w-xl mx-auto leading-relaxed font-light">
-              Reserve a Table with Us. Choose your menu, and pay securely. Everything you need for a memorable celebration.
+              Reserve a Table with Us. Choose your menu, and pay securely. Graduation dates coming out soon!
             </p>
 
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               <Button 
                 size="lg" 
-                className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 active:scale-98 transition-all"
-                onClick={() => navigate('/book')} 
-                data-testid="hero-book-now"
+                className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 active:scale-98 transition-all flex items-center justify-center gap-2"
+                onClick={() => navigate('/leads')} 
+                data-testid="hero-join-waitlist"
               >
-                Reserve a Table <ArrowRight className="ml-2 h-5 w-5" />
+                Join Priority List (Dates Pending) <ArrowRight className="h-5 w-5" />
               </Button>
               <Button 
                 size="lg" 
                 variant="outline" 
                 className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/25 backdrop-blur-sm font-semibold active:scale-98 transition-all"
-                onClick={() => navigate('/track')} 
-                data-testid="hero-track-table"
+                onClick={() => navigate('/book')} 
+                data-testid="hero-book-now"
               >
-                Track Table
+                Reserve Table Directly
               </Button>
             </div>
           </motion.div>
@@ -265,6 +275,11 @@ export default function LandingPage() {
                 <li>
                   <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-muted-foreground hover:text-foreground transition-colors duration-150">
                     Home
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => navigate('/leads')} className="text-muted-foreground hover:text-foreground transition-colors duration-150 flex items-center gap-1.5 font-semibold text-primary" data-testid="footer-leads">
+                    Join Priority Waitlist
                   </button>
                 </li>
                 <li>

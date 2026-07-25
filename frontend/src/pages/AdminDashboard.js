@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Package, Receipt, Table2, Calendar, Settings, LogOut,
   Plus, Pencil, Trash2, Users, CreditCard, Loader2, Menu, X, CheckCircle,
   BarChart3, TrendingUp, Search, ArrowUpDown, ChevronLeft, ChevronRight,
-  Download, Sun, Moon, Sparkles, CheckSquare, Square, SlidersHorizontal
+  Download, Sun, Moon, Sparkles, CheckSquare, Square, SlidersHorizontal, UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +29,7 @@ const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "bookings", label: "Bookings", icon: Receipt },
+  { id: "leads", label: "Priority Waitlist", icon: UserCheck },
   { id: "products", label: "Products", icon: Package },
   { id: "dates", label: "Dates", icon: Calendar },
   { id: "settings", label: "Settings", icon: Settings },
@@ -48,6 +49,9 @@ export default function AdminDashboard() {
   const [products, setProducts] = useState([]);
   const [dates, setDates] = useState([]);
   const [settings, setSettings] = useState({ event_fee_per_person: 50 });
+  const [leads, setLeads] = useState([]);
+  const [leadSearch, setLeadSearch] = useState("");
+  const [leadStatusFilter, setLeadStatusFilter] = useState("all");
 
   // Dialogs State
   const [productDialog, setProductDialog] = useState(false);
@@ -100,13 +104,14 @@ export default function AdminDashboard() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [statsR, bookingsR, productsR, datesR, settingsR, paymentsR] = await Promise.all([
+      const [statsR, bookingsR, productsR, datesR, settingsR, paymentsR, leadsR] = await Promise.all([
         axios.get(`${API}/admin/stats`, authHeaders()),
         axios.get(`${API}/admin/bookings`, authHeaders()),
         axios.get(`${API}/admin/products`, authHeaders()),
         axios.get(`${API}/admin/dates`, authHeaders()),
         axios.get(`${API}/admin/settings`, authHeaders()),
         axios.get(`${API}/admin/payments`, authHeaders()),
+        axios.get(`${API}/admin/leads`, authHeaders()).catch(() => ({ data: [] })),
       ]);
       setStats(statsR.data);
       setBookings(bookingsR.data);
@@ -114,6 +119,7 @@ export default function AdminDashboard() {
       setDates(datesR.data);
       setSettings(settingsR.data);
       setPayments(paymentsR.data);
+      setLeads(leadsR.data || []);
     } catch (err) {
       if (err.response?.status === 401) {
         localStorage.removeItem("admin_token");
@@ -125,6 +131,72 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  // Lead Handlers
+  const updateLeadStatus = async (leadId, newStatus) => {
+    try {
+      await axios.patch(`${API}/admin/leads/${leadId}`, { status: newStatus }, authHeaders());
+      setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
+      toast.success("Lead status updated");
+    } catch (err) {
+      toast.error("Failed to update lead status");
+    }
+  };
+
+  const deleteLead = async (leadId) => {
+    if (!window.confirm("Are you sure you want to delete this lead entry?")) return;
+    try {
+      await axios.delete(`${API}/admin/leads/${leadId}`, authHeaders());
+      setLeads(prev => prev.filter(l => l.id !== leadId));
+      toast.success("Lead deleted successfully");
+    } catch (err) {
+      toast.error("Failed to delete lead");
+    }
+  };
+
+  const exportLeadsCSV = () => {
+    if (!leads.length) {
+      toast.error("No leads available to export");
+      return;
+    }
+    const headers = ["Lead Code", "Name", "Email", "Phone", "Institution", "Course", "Guests", "Expected Period", "Status", "Created At", "Notes"];
+    const rows = leads.map(l => [
+      l.lead_code,
+      `"${l.full_name || ""}"`,
+      l.email || "",
+      l.phone || "",
+      `"${l.institution || ""}"`,
+      `"${l.course || ""}"`,
+      l.estimated_guests || 10,
+      `"${l.expected_graduation_period || ""}"`,
+      l.status || "pending",
+      new Date(l.created_at).toLocaleString(),
+      `"${l.notes || ""}"`
+    ]);
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `kadel_priority_leads_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      const matchesStatus = leadStatusFilter === "all" || lead.status === leadStatusFilter;
+      const q = leadSearch.toLowerCase().trim();
+      const matchesSearch = !q || 
+        (lead.full_name && lead.full_name.toLowerCase().includes(q)) ||
+        (lead.email && lead.email.toLowerCase().includes(q)) ||
+        (lead.phone && lead.phone.toLowerCase().includes(q)) ||
+        (lead.institution && lead.institution.toLowerCase().includes(q)) ||
+        (lead.lead_code && lead.lead_code.toLowerCase().includes(q));
+      return matchesStatus && matchesSearch;
+    });
+  }, [leads, leadSearch, leadStatusFilter]);
 
   const logout = () => {
     localStorage.removeItem("admin_token");
@@ -1445,6 +1517,155 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* PRIORITY LEADS / WAITLIST */}
+            {activeTab === "leads" && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6"
+              >
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">Priority Reservation Leads</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Manage interest entries collected while official graduation dates are pending.</p>
+                  </div>
+                  <Button onClick={exportLeadsCSV} variant="outline" className="rounded-xl font-bold border-border/80 gap-2">
+                    <Download className="h-4 w-4" /> Export CSV
+                  </Button>
+                </div>
+
+                {/* Lead Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                  <Card className="p-5 border-border/80 shadow-sm bg-card">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Leads</span>
+                    <div className="text-2xl font-black text-foreground mt-1">{leads.length}</div>
+                  </Card>
+                  <Card className="p-5 border-border/80 shadow-sm bg-card">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Pending Contact</span>
+                    <div className="text-2xl font-black text-amber-600 mt-1">{leads.filter(l => (l.status || "pending") === "pending").length}</div>
+                  </Card>
+                  <Card className="p-5 border-border/80 shadow-sm bg-card">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Contacted</span>
+                    <div className="text-2xl font-black text-blue-600 mt-1">{leads.filter(l => l.status === "contacted").length}</div>
+                  </Card>
+                  <Card className="p-5 border-border/80 shadow-sm bg-card">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Converted</span>
+                    <div className="text-2xl font-black text-emerald-600 mt-1">{leads.filter(l => l.status === "converted").length}</div>
+                  </Card>
+                </div>
+
+                {/* Filters */}
+                <Card className="p-4 border-border/80 shadow-sm bg-card">
+                  <div className="flex flex-col sm:flex-row items-center gap-3">
+                    <div className="relative flex-1 w-full">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by name, email, phone, code or institution..."
+                        value={leadSearch}
+                        onChange={e => setLeadSearch(e.target.value)}
+                        className="pl-9 rounded-xl h-10 border-border/80 text-sm"
+                      />
+                    </div>
+                    <Select value={leadStatusFilter} onValueChange={setLeadStatusFilter}>
+                      <SelectTrigger className="w-full sm:w-48 h-10 rounded-xl border-border/80 text-sm font-medium">
+                        <SelectValue placeholder="Status Filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="contacted">Contacted</SelectItem>
+                        <SelectItem value="converted">Converted</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </Card>
+
+                {/* Leads Table */}
+                <Card className="border-border/80 shadow-md bg-card overflow-hidden">
+                  <Table>
+                    <TableHeader className="bg-muted/40">
+                      <TableRow>
+                        <TableHead className="font-bold">Code</TableHead>
+                        <TableHead className="font-bold">Graduate Name</TableHead>
+                        <TableHead className="font-bold">Contact Info</TableHead>
+                        <TableHead className="font-bold">Institution & Course</TableHead>
+                        <TableHead className="font-bold">Guests</TableHead>
+                        <TableHead className="font-bold">Graduation Period</TableHead>
+                        <TableHead className="font-bold">Status</TableHead>
+                        <TableHead className="font-bold text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredLeads.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                            No priority leads found matching criteria.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredLeads.map((lead) => (
+                          <TableRow key={lead.id} className="hover:bg-muted/30">
+                            <TableCell className="font-mono font-bold text-xs text-primary">{lead.lead_code}</TableCell>
+                            <TableCell className="font-semibold text-foreground text-sm">{lead.full_name}</TableCell>
+                            <TableCell className="text-xs space-y-0.5">
+                              <div className="font-medium text-foreground">{lead.email}</div>
+                              <div className="text-muted-foreground">{lead.phone}</div>
+                            </TableCell>
+                            <TableCell className="text-xs space-y-0.5 max-w-[200px]">
+                              <div className="font-semibold text-foreground truncate">{lead.institution}</div>
+                              {lead.course && <div className="text-muted-foreground truncate">{lead.course}</div>}
+                            </TableCell>
+                            <TableCell className="text-xs font-bold text-foreground">{lead.estimated_guests} guests</TableCell>
+                            <TableCell className="text-xs text-muted-foreground">{lead.expected_graduation_period || "Pending"}</TableCell>
+                            <TableCell>
+                              <select
+                                value={lead.status || "pending"}
+                                onChange={(e) => updateLeadStatus(lead.id, e.target.value)}
+                                className={`text-xs font-bold px-2.5 py-1 rounded-full border border-border/80 focus:outline-none cursor-pointer ${
+                                  lead.status === "converted" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/30" :
+                                  lead.status === "contacted" ? "bg-blue-500/10 text-blue-600 border-blue-500/30" :
+                                  lead.status === "archived" ? "bg-muted text-muted-foreground" :
+                                  "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                }`}
+                              >
+                                <option value="pending">Pending</option>
+                                <option value="contacted">Contacted</option>
+                                <option value="converted">Converted</option>
+                                <option value="archived">Archived</option>
+                              </select>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <a
+                                  href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Hello ${lead.full_name}, this is KaDel regarding your graduation table reservation interest for ${lead.institution}.`)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors text-xs font-semibold flex items-center gap-1"
+                                >
+                                  WhatsApp
+                                </a>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                                  onClick={() => deleteLead(lead.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
                 </Card>
               </motion.div>
             )}

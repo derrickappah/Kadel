@@ -8,6 +8,7 @@ import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 import TrackTable from "@/pages/TrackTable";
 
+import LeadCapture from "@/pages/LeadCapture";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
 
@@ -17,6 +18,7 @@ function App() {
       <Toaster position="top-right" richColors />
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/leads" element={<LeadCapture />} />
         <Route path="/book" element={<BookingWizard />} />
         <Route path="/track" element={<TrackTable />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />

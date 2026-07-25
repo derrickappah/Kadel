@@ -62,6 +62,20 @@ class BookingCreate(BaseModel):
     wants_food: bool
     selections: List[BookingSelection] = []
 
+class LeadCreate(BaseModel):
+    full_name: str
+    email: str
+    phone: str
+    institution: str
+    course: Optional[str] = ""
+    estimated_guests: int = Field(default=10, ge=1)
+    expected_graduation_period: Optional[str] = ""
+    notes: Optional[str] = ""
+
+class LeadStatusUpdate(BaseModel):
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
 class AdminLoginReq(BaseModel):
     email: str
     password: str
@@ -89,6 +103,11 @@ def generate_reservation_code():
     prefix = "KAD"
     # 5 digits gives 100,000 possible codes (vs. 1,000 with 3 digits),
     # greatly reducing collision probability for large events.
+    numbers = ''.join(random.choices(string.digits, k=5))
+    return f"{prefix}{numbers}"
+
+def generate_lead_code():
+    prefix = "LEAD-"
     numbers = ''.join(random.choices(string.digits, k=5))
     return f"{prefix}{numbers}"
 
@@ -1266,6 +1285,113 @@ async def admin_update_settings(data: dict, admin=Depends(get_current_admin)):
     update["key"] = "settings"
     await supabase.table("event_settings").upsert(update).execute()
     return {"message": "Settings updated"}
+
+# ==================== LEADS & WAITLIST ENDPOINTS ====================
+
+in_memory_leads = []
+
+@api_router.post("/leads")
+async def create_lead(lead: LeadCreate):
+    if not lead.full_name.strip() or not lead.email.strip() or not lead.phone.strip():
+        raise HTTPException(400, "Full name, email, and phone number are required.")
+    
+    lead_code = generate_lead_code()
+    for _ in range(10):
+        try:
+            res_check = await supabase.table("leads").select("id").eq("lead_code", lead_code).execute()
+            if not res_check.data:
+                break
+        except Exception:
+            break
+        lead_code = generate_lead_code()
+
+    lead_id = str(uuid.uuid4())
+    lead_doc = {
+        "id": lead_id,
+        "lead_code": lead_code,
+        "full_name": lead.full_name.strip(),
+        "email": lead.email.strip().lower(),
+        "phone": lead.phone.strip(),
+        "institution": lead.institution.strip() if lead.institution else "General",
+        "course": lead.course.strip() if lead.course else "",
+        "estimated_guests": lead.estimated_guests,
+        "expected_graduation_period": lead.expected_graduation_period.strip() if lead.expected_graduation_period else "",
+        "notes": lead.notes.strip() if lead.notes else "",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    saved_to_db = False
+    try:
+        res = await supabase.table("leads").insert(lead_doc).execute()
+        if res.data:
+            saved_to_db = True
+    except Exception as e:
+        logger.warning(f"Supabase lead insert notice: {e}")
+
+    if not saved_to_db:
+        in_memory_leads.insert(0, lead_doc)
+
+    return {
+        "status": "success",
+        "lead_code": lead_code,
+        "message": "Thank you! You have been added to the priority reservation waitlist.",
+        "data": lead_doc
+    }
+
+@api_router.get("/admin/leads")
+async def admin_get_leads(admin=Depends(get_current_admin)):
+    db_leads = []
+    try:
+        res = await supabase.table("leads").select("*").order("created_at", desc=True).execute()
+        if res.data:
+            db_leads = res.data
+    except Exception as e:
+        logger.warning(f"Could not fetch leads from Supabase: {e}")
+
+    combined = list(db_leads)
+    existing_ids = {l.get("id") for l in db_leads}
+    for mem_l in in_memory_leads:
+        if mem_l["id"] not in existing_ids:
+            combined.append(mem_l)
+            
+    combined.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return combined
+
+@api_router.patch("/admin/leads/{lead_id}")
+async def admin_update_lead(lead_id: str, data: LeadStatusUpdate, admin=Depends(get_current_admin)):
+    update_data = {}
+    if data.status:
+        update_data["status"] = data.status
+    if data.notes is not None:
+        update_data["notes"] = data.notes
+    
+    if not update_data:
+        raise HTTPException(400, "No update parameters provided")
+
+    for mem_l in in_memory_leads:
+        if mem_l["id"] == lead_id:
+            mem_l.update(update_data)
+
+    try:
+        res = await supabase.table("leads").update(update_data).eq("id", lead_id).execute()
+        if res.data:
+            return {"message": "Lead updated successfully", "data": res.data[0]}
+    except Exception as e:
+        logger.warning(f"Error updating lead {lead_id} in Supabase: {e}")
+
+    return {"message": "Lead updated successfully"}
+
+@api_router.delete("/admin/leads/{lead_id}")
+async def admin_delete_lead(lead_id: str, admin=Depends(get_current_admin)):
+    global in_memory_leads
+    in_memory_leads = [l for l in in_memory_leads if l["id"] != lead_id]
+    try:
+        await supabase.table("leads").delete().eq("id", lead_id).execute()
+    except Exception as e:
+        logger.warning(f"Error deleting lead {lead_id} in Supabase: {e}")
+
+    return {"message": "Lead deleted successfully"}
 
 # Include router
 app.include_router(api_router)
