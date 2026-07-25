@@ -123,19 +123,29 @@ export default function LeadCapture() {
               className="space-y-10"
             >
               {/* Form Layout */}
-              <div className="max-w-xl mx-auto w-full pt-4">
+              <div className="max-w-xl mx-auto w-full pt-2 space-y-6">
+                {/* Header & Subtitle Outside Form */}
+                <div className="text-center space-y-2">
+                  <h1 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground flex items-center justify-center gap-2.5">
+                    <Users className="h-7 w-7 text-primary shrink-0" />
+                    Priority Reservation Lead Form
+                  </h1>
+                  <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto leading-relaxed">
+                    Fill in your details to get notified the second official graduation dates drop.
+                  </p>
+                  
+                  {/* Kente Accent */}
+                  <div className="flex justify-center pt-2">
+                    <div className="flex gap-0.5 h-1 w-16 rounded-full overflow-hidden">
+                      <div className="bg-[#FF3300] flex-1" />
+                      <div className="bg-[#FFCC00] flex-1" />
+                      <div className="bg-[#009933] flex-1" />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Form Card */}
                 <Card className="bg-card border-border/80 rounded-3xl shadow-xl overflow-hidden">
-                  <CardHeader className="bg-muted/30 border-b border-border/60 pb-6">
-                    <CardTitle className="text-xl font-bold font-display flex items-center gap-2">
-                      <Users className="h-5 w-5 text-primary" />
-                      Priority Reservation Lead Form
-                    </CardTitle>
-                    <CardDescription className="text-sm">
-                      Fill in your details to get notified the second official graduation dates drop.
-                    </CardDescription>
-                  </CardHeader>
-
                   <CardContent className="p-6 sm:p-8 space-y-6">
                     <form onSubmit={handleSubmit} className="space-y-5">
                       {/* Name */}
