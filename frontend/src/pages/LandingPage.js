@@ -64,11 +64,11 @@ export default function LandingPage() {
       >
         {/* Priority Waitlist Alert Banner (Z-axis overlay at top of hero) */}
         {currentPhase === "leads" && (
-          <div className="absolute top-0 left-0 right-0 z-20 bg-amber-500/20 backdrop-blur-md border-b border-amber-500/30 py-3 px-4 text-center text-xs sm:text-sm font-medium text-amber-200 flex items-center justify-center gap-2">
-            <span>🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
+          <div className="absolute top-0 left-0 right-0 z-20 bg-black/75 backdrop-blur-md border-b border-amber-500/30 py-3.5 px-4 text-center text-xs sm:text-sm font-medium text-white flex flex-wrap items-center justify-center gap-2 shadow-lg">
+            <span className="leading-relaxed">🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
             <button
               onClick={() => navigate('/leads')}
-              className="underline font-bold text-amber-300 hover:text-white transition-colors inline-flex items-center gap-1 cursor-pointer"
+              className="underline font-bold text-amber-400 hover:text-amber-300 transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0 ml-1"
               data-testid="banner-waitlist-btn"
             >
               Join Priority List <ArrowRight className="h-3.5 w-3.5" />
