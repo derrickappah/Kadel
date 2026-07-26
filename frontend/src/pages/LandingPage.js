@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown } from "lucide-react";
+import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown, Camera } from "lucide-react";
+import PhotoGallery from "@/components/PhotoGallery";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const HERO_IMG = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
@@ -211,6 +212,19 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Featured Photo Gallery Section */}
+      <section className="py-24 bg-card/40 border-t border-border/50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <PhotoGallery 
+            limit={6} 
+            showCategoryFilter={true} 
+            showViewAllBtn={true} 
+            title="Graduation Experience Gallery"
+            subtitle="Take a look at our past graduation dining celebrations, food spreads, and happy memories."
+          />
+        </div>
+      </section>
+
       {/* Testimonials Section */}
       <section className="py-24 bg-background border-t border-border/50">
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
@@ -339,6 +353,11 @@ export default function LandingPage() {
                 <li>
                   <button onClick={() => navigate('/track')} className="text-muted-foreground hover:text-foreground transition-colors duration-150" data-testid="footer-track">
                     Track My Table
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => navigate('/gallery')} className="text-muted-foreground hover:text-foreground transition-colors duration-150 font-semibold text-foreground/90" data-testid="footer-gallery">
+                    Photo Gallery
                   </button>
                 </li>
               </ul>
