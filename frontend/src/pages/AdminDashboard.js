@@ -1610,7 +1610,27 @@ export default function AdminDashboard() {
                       {filteredLeads.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                            No priority leads found matching criteria.
+                            {leads.length > 0 ? (
+                              <div className="space-y-3 max-w-sm mx-auto">
+                                <p className="text-sm font-semibold text-foreground">No priority leads found matching criteria.</p>
+                                <p className="text-xs text-muted-foreground">Try clearing your search term or status filter.</p>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  onClick={() => { setLeadSearch(""); setLeadStatusFilter("all"); }}
+                                  className="rounded-xl text-xs font-bold"
+                                >
+                                  Reset Search Filters
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="space-y-2 max-w-md mx-auto">
+                                <p className="text-sm font-semibold text-foreground">No priority waitlist submissions recorded yet.</p>
+                                <p className="text-xs text-muted-foreground">
+                                  When graduates submit their interest on the priority lead form (<code className="bg-muted px-1.5 py-0.5 rounded font-mono text-primary">/leads</code>), they will appear here automatically with instant WhatsApp contact links.
+                                </p>
+                              </div>
+                            )}
                           </TableCell>
                         </TableRow>
                       ) : (
