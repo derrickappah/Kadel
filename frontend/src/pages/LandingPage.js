@@ -136,7 +136,7 @@ export default function LandingPage() {
                     onClick={() => navigate('/leads')} 
                     data-testid="hero-join-waitlist"
                   >
-                    Join Priority List (Dates Pending) <ArrowRight className="h-5 w-5" />
+                    Join Priority List <ArrowRight className="h-5 w-5" />
                   </Button>
                   <Button 
                     size="lg" 
