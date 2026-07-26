@@ -1292,8 +1292,8 @@ in_memory_leads = []
 
 @api_router.post("/leads")
 async def create_lead(lead: LeadCreate):
-    if not lead.full_name.strip() or not lead.email.strip() or not lead.phone.strip():
-        raise HTTPException(400, "Full name, email, and phone number are required.")
+    if not lead.full_name.strip() or not lead.email.strip() or not lead.phone.strip() or not lead.course.strip():
+        raise HTTPException(400, "Full name, email, phone number, and course are required.")
     
     lead_code = generate_lead_code()
     for _ in range(10):

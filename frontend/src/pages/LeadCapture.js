@@ -42,8 +42,8 @@ export default function LeadCapture() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim()) {
-      toast.error("Please fill in all required fields (Name, Email, and Phone)");
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.course.trim()) {
+      toast.error("Please fill in all required fields (Name, Email, Phone, and Course)");
       return;
     }
 
@@ -205,7 +205,7 @@ export default function LeadCapture() {
                       <div className="space-y-2">
                         <Label htmlFor="course" className="text-sm font-semibold flex items-center gap-1.5">
                           <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          Course / Program of Study (Optional)
+                          Course / Program of Study <span className="text-destructive">*</span>
                         </Label>
                         <Input
                           id="course"
@@ -213,7 +213,8 @@ export default function LeadCapture() {
                           placeholder="e.g. BSc. Business Administration"
                           value={formData.course}
                           onChange={handleChange}
-                          className="rounded-xl h-11 border-border/80"
+                          required
+                          className="rounded-xl h-11 border-border/80 focus-visible:ring-primary"
                         />
                       </div>
 
