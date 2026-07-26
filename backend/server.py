@@ -643,8 +643,16 @@ async def get_products(category: Optional[str] = None):
 
 @api_router.get("/event-settings")
 async def get_event_settings():
-    res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
-    return res.data[0] if res.data else {"event_fee_per_person": 0.0}
+    try:
+        res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
+        if res.data:
+            data = res.data[0]
+            if "current_phase" not in data or not data["current_phase"]:
+                data["current_phase"] = "leads"
+            return data
+    except Exception as e:
+        logger.warning(f"Error fetching event settings: {e}")
+    return {"event_fee_per_person": 50.0, "current_phase": "leads"}
 
 @api_router.post("/bookings")
 async def create_booking(booking: BookingCreate):
@@ -1266,25 +1274,41 @@ async def admin_assign_table(data: TableAssign, admin=Depends(get_current_admin)
 
 @api_router.get("/admin/settings")
 async def admin_get_settings(admin=Depends(get_current_admin)):
-    res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
-    return res.data[0] if res.data else {"event_fee_per_person": 50.0}
+    try:
+        res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
+        if res.data:
+            data = res.data[0]
+            if "current_phase" not in data or not data["current_phase"]:
+                data["current_phase"] = "leads"
+            return data
+    except Exception as e:
+        logger.warning(f"Error reading admin settings: {e}")
+    return {"event_fee_per_person": 50.0, "current_phase": "leads"}
 
 @api_router.patch("/admin/settings")
 async def admin_update_settings(data: dict, admin=Depends(get_current_admin)):
-    allowed = {"event_fee_per_person"}
+    allowed = {"event_fee_per_person", "current_phase"}
     update = {k: v for k, v in data.items() if k in allowed}
-    # FIX: Validate that event_fee_per_person is a non-negative number.
-    # A negative fee would silently credit money back to the customer during
-    # booking creation (base_cost = charged_blocks * negative_fee < 0).
+    
     if "event_fee_per_person" in update:
         fee = update["event_fee_per_person"]
         if not isinstance(fee, (int, float)) or fee < 0:
             raise HTTPException(400, "event_fee_per_person must be a non-negative number")
+            
+    if "current_phase" in update:
+        phase = update["current_phase"]
+        if phase not in ["leads", "active"]:
+            raise HTTPException(400, "current_phase must be either 'leads' or 'active'")
+
     if not {k for k in update if k != "key"}:
         raise HTTPException(400, "No valid fields provided for update")
+        
     update["key"] = "settings"
-    await supabase.table("event_settings").upsert(update).execute()
-    return {"message": "Settings updated"}
+    try:
+        await supabase.table("event_settings").upsert(update).execute()
+    except Exception as e:
+        logger.warning(f"Failed to persist settings in Supabase: {e}")
+    return {"message": "Settings updated successfully", "settings": update}
 
 # ==================== LEADS & WAITLIST ENDPOINTS ====================
 

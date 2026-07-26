@@ -348,8 +348,11 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      await axios.patch(`${API}/admin/settings`, { event_fee_per_person: fee }, authHeaders());
-      toast.success("Settings saved");
+      await axios.patch(`${API}/admin/settings`, { 
+        event_fee_per_person: fee,
+        current_phase: settings.current_phase || "leads"
+      }, authHeaders());
+      toast.success("Settings saved successfully");
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to save settings");
     }
@@ -1876,6 +1879,62 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Campaign Phase Mode Toggle */}
+                  <Card className="border-border/80 shadow-md bg-card md:col-span-2">
+                    <CardHeader className="bg-secondary/10 border-b border-border/45 px-6 py-4">
+                      <CardTitle className="text-base font-bold text-foreground">Website Campaign Phase</CardTitle>
+                      <CardDescription className="text-xs">Switch website state between lead collection phase and live reservation phase.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6 space-y-5">
+                      <div className="space-y-3">
+                        <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Select Active Phase</Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setSettings(s => ({ ...s, current_phase: "leads" }))}
+                            className={`p-4 rounded-2xl border text-left transition-all space-y-2 cursor-pointer ${
+                              (settings.current_phase || "leads") === "leads"
+                                ? "bg-amber-500/10 border-amber-500 text-amber-900 dark:text-amber-300 shadow-md ring-2 ring-amber-500/30"
+                                : "bg-card border-border/80 hover:border-primary/40 text-muted-foreground"
+                            }`}
+                            data-testid="settings-phase-leads"
+                          >
+                            <div className="flex items-center justify-between font-bold text-base">
+                              <span>Leads Phase (Dates Pending)</span>
+                              {(settings.current_phase || "leads") === "leads" && <CheckCircle className="h-5 w-5 text-amber-600 shrink-0" />}
+                            </div>
+                            <p className="text-xs leading-relaxed opacity-90">
+                              Graduation dates pending. Hero displays <strong>Join Priority List</strong> & <strong>Reserve Table Directly</strong> buttons + priority announcement banner.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSettings(s => ({ ...s, current_phase: "active" }))}
+                            className={`p-4 rounded-2xl border text-left transition-all space-y-2 cursor-pointer ${
+                              settings.current_phase === "active"
+                                ? "bg-emerald-500/10 border-emerald-500 text-emerald-900 dark:text-emerald-300 shadow-md ring-2 ring-emerald-500/30"
+                                : "bg-card border-border/80 hover:border-primary/40 text-muted-foreground"
+                            }`}
+                            data-testid="settings-phase-active"
+                          >
+                            <div className="flex items-center justify-between font-bold text-base">
+                              <span>Active Phase (Live Booking)</span>
+                              {settings.current_phase === "active" && <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />}
+                            </div>
+                            <p className="text-xs leading-relaxed opacity-90">
+                              Graduation dates released. Hero displays <strong>Reserve a Table</strong> & <strong>Track Table</strong> buttons.
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+
+                      <Button onClick={saveSettings} className="rounded-xl h-10 px-5 font-bold bg-primary hover:bg-primary/95 text-primary-foreground">
+                        Save Phase Settings
+                      </Button>
+                    </CardContent>
+                  </Card>
+
                   {/* Event Pricing */}
                   <Card className="border-border/80 shadow-md bg-card">
                     <CardHeader className="bg-secondary/10 border-b border-border/45 px-6 py-4">
