@@ -101,6 +101,19 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, navigate]);
 
+  const handleAuthError = (err, fallbackMsg) => {
+    if (err?.response?.status === 401) {
+      localStorage.removeItem("admin_token");
+      toast.error("Session expired or invalid token. Please log in again.");
+      navigate("/admin/login");
+      return true;
+    }
+    if (fallbackMsg) {
+      toast.error(err?.response?.data?.detail || fallbackMsg);
+    }
+    return false;
+  };
+
   const fetchAll = async () => {
     setLoading(true);
     try {
@@ -121,12 +134,7 @@ export default function AdminDashboard() {
       setPayments(paymentsR.data);
       setLeads(leadsR.data || []);
     } catch (err) {
-      if (err.response?.status === 401) {
-        localStorage.removeItem("admin_token");
-        navigate("/admin/login");
-      } else {
-        toast.error("Failed to load data");
-      }
+      handleAuthError(err, "Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -139,7 +147,7 @@ export default function AdminDashboard() {
       setLeads(prev => prev.map(l => l.id === leadId ? { ...l, status: newStatus } : l));
       toast.success("Lead status updated");
     } catch (err) {
-      toast.error("Failed to update lead status");
+      handleAuthError(err, "Failed to update lead status");
     }
   };
 
@@ -150,7 +158,7 @@ export default function AdminDashboard() {
       setLeads(prev => prev.filter(l => l.id !== leadId));
       toast.success("Lead deleted successfully");
     } catch (err) {
-      toast.error("Failed to delete lead");
+      handleAuthError(err, "Failed to delete lead");
     }
   };
 
@@ -261,8 +269,8 @@ export default function AdminDashboard() {
       await axios.delete(`${API}/admin/products/${id}`, authHeaders());
       toast.success("Product deleted");
       fetchAll();
-    } catch {
-      toast.error("Failed to delete product");
+    } catch (err) {
+      handleAuthError(err, "Failed to delete product");
     }
   };
 
@@ -275,8 +283,8 @@ export default function AdminDashboard() {
       setDateDialog(false);
       setDateForm({ date_label: "" });
       fetchAll();
-    } catch {
-      toast.error("Failed to add date");
+    } catch (err) {
+      handleAuthError(err, "Failed to add date");
     }
   };
 
@@ -286,8 +294,8 @@ export default function AdminDashboard() {
       await axios.delete(`${API}/admin/dates/${id}`, authHeaders());
       toast.success("Date deleted");
       fetchAll();
-    } catch {
-      toast.error("Failed to delete date");
+    } catch (err) {
+      handleAuthError(err, "Failed to delete date");
     }
   };
 
@@ -299,9 +307,6 @@ export default function AdminDashboard() {
 
   const assignTable = async () => {
     try {
-      // FIX: Allow clearing a single booking's table by sending null when the
-      // input is empty. Previously the guard "if (!tableForm.table_number)"
-      // blocked clearing, forcing admins to use bulk-clear for a single booking.
       const tableValue = tableForm.table_number.trim() || null;
       await axios.post(`${API}/admin/tables/assign`, {
         booking_id: tableForm.booking_id,
@@ -310,8 +315,8 @@ export default function AdminDashboard() {
       toast.success(tableValue ? `Table ${tableValue} assigned` : "Table assignment cleared");
       setTableDialog(false);
       fetchAll();
-    } catch {
-      toast.error("Failed to assign table");
+    } catch (err) {
+      handleAuthError(err, "Failed to assign table");
     }
   };
 
@@ -321,17 +326,14 @@ export default function AdminDashboard() {
     try {
       await Promise.all(
         selectedBookings.map(id =>
-          // FIX: Send null instead of empty string "" to properly clear table numbers.
-          // Empty string is not NULL in SQL, so auto_assign_table() (which filters on
-          // NOT NULL) would still count cleared tables, causing incorrect table numbering.
           axios.post(`${API}/admin/tables/assign`, { booking_id: id, table_number: null }, authHeaders())
         )
       );
       toast.success("Table assignments cleared");
       setSelectedBookings([]);
       fetchAll();
-    } catch {
-      toast.error("Failed to clear some table assignments");
+    } catch (err) {
+      handleAuthError(err, "Failed to clear some table assignments");
     }
   };
 
@@ -339,10 +341,6 @@ export default function AdminDashboard() {
 
   const saveSettings = async () => {
     const fee = parseFloat(settings.event_fee_per_person);
-    // FIX: Validate event fee is non-negative before saving. A negative fee
-    // would result in a negative base_cost being sent to the backend, which
-    // now also rejects it with HTTP 400 — but catching it client-side gives
-    // the admin a clearer error message.
     if (isNaN(fee) || fee < 0) {
       toast.error("Event fee must be 0 or greater");
       return;
@@ -354,7 +352,7 @@ export default function AdminDashboard() {
       }, authHeaders());
       toast.success("Settings saved successfully");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to save settings");
+      handleAuthError(err, "Failed to save settings");
     }
   };
 
