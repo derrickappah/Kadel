@@ -1,0 +1,115 @@
+-- =========================================================
+-- KaDel Ghana - Complete Supabase / PostgreSQL Database Schema Migration
+-- Execute this script in your Supabase Dashboard SQL Editor
+-- =========================================================
+
+-- 1. Create event_settings table (handles pricing & website phase mode)
+CREATE TABLE IF NOT EXISTS public.event_settings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key TEXT UNIQUE NOT NULL DEFAULT 'settings',
+    event_fee_per_person NUMERIC(10,2) NOT NULL DEFAULT 50.00,
+    current_phase TEXT NOT NULL DEFAULT 'leads', -- 'leads' (waitlist mode) or 'active' (live booking mode)
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Ensure current_phase column exists if table was created previously
+ALTER TABLE public.event_settings 
+ADD COLUMN IF NOT EXISTS current_phase TEXT NOT NULL DEFAULT 'leads';
+
+-- Insert default settings row if not exists
+INSERT INTO public.event_settings (key, event_fee_per_person, current_phase)
+VALUES ('settings', 50.00, 'leads')
+ON CONFLICT (key) DO UPDATE 
+SET current_phase = EXCLUDED.current_phase;
+
+
+-- 2. Create leads table (for priority reservation interest / waitlist)
+CREATE TABLE IF NOT EXISTS public.leads (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    lead_code TEXT UNIQUE NOT NULL,
+    full_name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    institution TEXT DEFAULT 'General',
+    course TEXT NOT NULL,
+    estimated_guests INTEGER DEFAULT 10,
+    expected_graduation_period TEXT DEFAULT 'Pending Announcement',
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'contacted', 'converted', 'archived'
+    notes TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_leads_code ON public.leads(lead_code);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON public.leads(status);
+CREATE INDEX IF NOT EXISTS idx_leads_email ON public.leads(email);
+
+
+-- 3. Create graduation_dates table
+CREATE TABLE IF NOT EXISTS public.graduation_dates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date_label TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- 4. Create products table (catering menu items: food, drink, pastry)
+CREATE TABLE IF NOT EXISTS public.products (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    category TEXT NOT NULL CHECK (category IN ('food', 'drink', 'pastry')),
+    price NUMERIC(10,2) NOT NULL CHECK (price >= 0),
+    stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+    vendor TEXT DEFAULT '',
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
+-- 5. Create bookings table
+CREATE TABLE IF NOT EXISTS public.bookings (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reservation_code TEXT UNIQUE NOT NULL,
+    graduate_name TEXT NOT NULL,
+    course TEXT NOT NULL,
+    graduation_date TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    email TEXT NOT NULL,
+    attendees_count INTEGER NOT NULL CHECK (attendees_count > 0),
+    wants_food BOOLEAN NOT NULL DEFAULT FALSE,
+    selections JSONB DEFAULT '[]'::jsonb,
+    total_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'confirmed', 'failed', 'cancelled'
+    table_number TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bookings_code ON public.bookings(reservation_code);
+CREATE INDEX IF NOT EXISTS idx_bookings_date ON public.bookings(graduation_date);
+CREATE INDEX IF NOT EXISTS idx_bookings_status ON public.bookings(status);
+
+
+-- 6. Create payments table
+CREATE TABLE IF NOT EXISTS public.payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    booking_id UUID REFERENCES public.bookings(id) ON DELETE CASCADE,
+    reference TEXT UNIQUE NOT NULL,
+    amount NUMERIC(10,2) NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'success', 'failed'
+    channel TEXT DEFAULT 'moolre',
+    gateway TEXT DEFAULT 'moolre',
+    raw_response JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_ref ON public.payments(reference);
+
+
+-- 7. Grant Table Permissions for Supabase Roles
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role, anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, service_role, anon, authenticated;
