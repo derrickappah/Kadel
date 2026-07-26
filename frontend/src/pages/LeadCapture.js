@@ -126,8 +126,8 @@ export default function LeadCapture() {
               <div className="max-w-xl mx-auto w-full pt-2 space-y-6">
                 {/* Header & Subtitle Outside Form */}
                 <div className="text-center space-y-2">
-                  <h1 className="font-display text-2xl sm:text-4xl font-extrabold tracking-tight text-foreground text-center">
-                    Priority Reservation Lead Form
+                  <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tight text-foreground text-center">
+                    Get Notified
                   </h1>
                   <p className="text-muted-foreground text-sm sm:text-base max-w-md mx-auto leading-relaxed">
                     Fill in your details to get notified the second official graduation dates drop.
