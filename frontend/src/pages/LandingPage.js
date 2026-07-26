@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown, Camera } from "lucide-react";
+import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown, Camera, Lock } from "lucide-react";
+import { toast } from "sonner";
 import PhotoGallery from "@/components/PhotoGallery";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -142,11 +143,13 @@ export default function LandingPage() {
                   <Button 
                     size="lg" 
                     variant="outline" 
-                    className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/25 backdrop-blur-sm font-semibold active:scale-98 transition-all"
-                    onClick={() => navigate('/book')} 
+                    className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-white/10 text-white/70 border-white/20 backdrop-blur-sm font-semibold opacity-80 flex items-center justify-center gap-2 cursor-pointer hover:bg-white/15 active:scale-98 transition-all"
+                    onClick={() => {
+                      toast.info("Direct table reservations are locked until official graduation dates drop. Join the priority list to get early access!");
+                    }} 
                     data-testid="hero-book-now"
                   >
-                    Reserve Table Directly
+                    <Lock className="h-4.5 w-4.5 text-amber-400 shrink-0" /> Reserve Table Directly
                   </Button>
                 </>
               )}

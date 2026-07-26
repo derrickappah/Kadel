@@ -64,6 +64,11 @@ export default function BookingWizard() {
           axios.get(`${API}/products`),
           axios.get(`${API}/event-settings`),
         ]);
+        if (settingsRes.data && settingsRes.data.current_phase === "leads") {
+          toast.info("Direct table reservations are locked until official graduation dates drop. Join the priority list!");
+          navigate("/leads");
+          return;
+        }
         setDates(datesRes.data);
         setProducts(productsRes.data);
         setEventFee(settingsRes.data.event_fee_per_person || 0);
@@ -74,7 +79,7 @@ export default function BookingWizard() {
       }
     };
     fetchData();
-  }, []);
+  }, [navigate]);
 
   const foodItems = useMemo(() => products.filter(p => p.category === "food"), [products]);
   const drinkItems = useMemo(() => products.filter(p => p.category === "drink"), [products]);
