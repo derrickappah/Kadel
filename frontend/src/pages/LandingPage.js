@@ -57,20 +57,6 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Top Waitlist Alert Banner (Only shown in leads phase) */}
-      {currentPhase === "leads" && (
-        <div className="bg-amber-500/10 border-b border-amber-500/20 py-2.5 px-4 text-center text-xs sm:text-sm font-medium text-amber-800 dark:text-amber-300 flex items-center justify-center gap-2">
-          <span>🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
-          <button
-            onClick={() => navigate('/leads')}
-            className="underline font-bold hover:text-primary transition-colors inline-flex items-center gap-1"
-            data-testid="banner-waitlist-btn"
-          >
-            Join Priority List <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
-
       {/* Hero */}
       <section 
         className="relative bg-cover bg-center bg-no-repeat min-h-screen flex flex-col items-center justify-center py-20 px-4 sm:px-6"
@@ -86,6 +72,22 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
             className="space-y-6"
           >
+            {/* Priority Waitlist Floating Pill (Z-axis overlay inside Hero) */}
+            {currentPhase === "leads" && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                onClick={() => navigate('/leads')}
+                className="inline-flex flex-wrap items-center justify-center gap-2 bg-black/50 hover:bg-black/75 border border-amber-400/40 backdrop-blur-md px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium text-amber-200 shadow-2xl transition-all cursor-pointer hover:border-amber-400/70 active:scale-98"
+                data-testid="banner-waitlist-btn"
+              >
+                <span>🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
+                <span className="font-bold text-amber-400 underline flex items-center gap-1">
+                  Join Priority List <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </motion.div>
+            )}
+
             {/* Ghana Kente Accent Bar Centered */}
             <div className="flex justify-center mb-6">
               <div className="flex gap-0.5 h-1.5 w-24 rounded-full overflow-hidden shadow-sm">
