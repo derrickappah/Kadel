@@ -62,13 +62,13 @@ export default function LandingPage() {
         className="relative bg-cover bg-center bg-no-repeat min-h-screen flex flex-col items-center justify-center py-20 px-4 sm:px-6"
         style={{ backgroundImage: `url(${HERO_IMG})` }}
       >
-        {/* Priority Waitlist Alert Banner (Z-axis overlay at top of hero) */}
+        {/* Priority Waitlist Alert Banner (Z-axis overlay using system design tokens) */}
         {currentPhase === "leads" && (
-          <div className="absolute top-0 left-0 right-0 z-20 bg-black/75 backdrop-blur-md border-b border-amber-500/30 py-3.5 px-4 text-center text-xs sm:text-sm font-medium text-white flex flex-wrap items-center justify-center gap-2 shadow-lg">
+          <div className="absolute top-0 left-0 right-0 z-20 bg-card/90 backdrop-blur-md border-b border-border/80 py-3.5 px-4 text-center text-xs sm:text-sm font-medium text-card-foreground flex flex-wrap items-center justify-center gap-2 shadow-md">
             <span className="leading-relaxed">🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
             <button
               onClick={() => navigate('/leads')}
-              className="underline font-bold text-amber-400 hover:text-amber-300 transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0 ml-1"
+              className="underline font-extrabold text-primary hover:text-primary/80 transition-colors inline-flex items-center gap-1 cursor-pointer shrink-0 ml-1"
               data-testid="banner-waitlist-btn"
             >
               Join Priority List <ArrowRight className="h-3.5 w-3.5" />
@@ -307,7 +307,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
             {/* Brand Section */}
-            <div className="md:col-span-2 space-y-4">
+            <div className="md:col-span-2 space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
               <div className="flex items-center gap-1.5">
                 <img src="/logo.png" alt="KaDel Logo" className="h-10 w-auto object-contain rounded-xl shadow-sm" />
                 <span className="font-display text-2xl font-extrabold tracking-wide text-black dark:text-white">KaDel</span>
@@ -318,7 +318,7 @@ export default function LandingPage() {
             </div>
 
             {/* Quick Links */}
-            <div className="space-y-4">
+            <div className="space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Navigation</h4>
               <ul className="space-y-2.5 text-sm">
                 <li>
@@ -345,7 +345,7 @@ export default function LandingPage() {
             </div>
 
             {/* Support */}
-            <div className="space-y-4">
+            <div className="space-y-4 flex flex-col items-center md:items-start text-center md:text-left">
               <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Support</h4>
               <ul className="space-y-2.5 text-sm">
                 <li>
@@ -367,7 +367,7 @@ export default function LandingPage() {
           <Separator className="bg-border/60 my-8" />
 
           {/* Bottom copyright */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground text-center sm:text-left">
             <p>&copy; {new Date().getFullYear()} KaDel Ghana. All rights reserved.</p>
             <div className="flex items-center gap-6">
               <span className="hover:text-foreground cursor-pointer transition-colors" onClick={() => navigate('/privacy')}>Privacy Policy</span>
