@@ -93,10 +93,6 @@ export default function Gallery() {
               </div>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
-              <Camera className="h-3.5 w-3.5" /> Official KaDel Moments
-            </div>
-
             <h1 className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground">
               Graduation Photo Gallery
             </h1>
