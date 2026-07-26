@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown } from "lucide-react";
 
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const HERO_IMG = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
 
 const steps = [
@@ -42,13 +44,9 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
-        const res = await fetch(`${backendUrl}/api/event-settings`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && data.current_phase) {
-            setCurrentPhase(data.current_phase);
-          }
+        const res = await axios.get(`${API}/event-settings`);
+        if (res.data && res.data.current_phase) {
+          setCurrentPhase(res.data.current_phase);
         }
       } catch (err) {
         console.error("Failed to load settings:", err);

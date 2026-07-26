@@ -641,18 +641,25 @@ async def get_products(category: Optional[str] = None):
     res = await query.execute()
     return res.data
 
+in_memory_settings = {
+    "key": "settings",
+    "event_fee_per_person": 50.0,
+    "current_phase": "leads"
+}
+
 @api_router.get("/event-settings")
 async def get_event_settings():
     try:
         res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
-        if res.data:
+        if res.data and len(res.data) > 0:
             data = res.data[0]
-            if "current_phase" not in data or not data["current_phase"]:
-                data["current_phase"] = "leads"
-            return data
+            if "current_phase" in data and data["current_phase"]:
+                in_memory_settings["current_phase"] = data["current_phase"]
+            if "event_fee_per_person" in data:
+                in_memory_settings["event_fee_per_person"] = data["event_fee_per_person"]
     except Exception as e:
         logger.warning(f"Error fetching event settings: {e}")
-    return {"event_fee_per_person": 50.0, "current_phase": "leads"}
+    return in_memory_settings
 
 @api_router.post("/bookings")
 async def create_booking(booking: BookingCreate):
@@ -1276,14 +1283,15 @@ async def admin_assign_table(data: TableAssign, admin=Depends(get_current_admin)
 async def admin_get_settings(admin=Depends(get_current_admin)):
     try:
         res = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
-        if res.data:
+        if res.data and len(res.data) > 0:
             data = res.data[0]
-            if "current_phase" not in data or not data["current_phase"]:
-                data["current_phase"] = "leads"
-            return data
+            if "current_phase" in data and data["current_phase"]:
+                in_memory_settings["current_phase"] = data["current_phase"]
+            if "event_fee_per_person" in data:
+                in_memory_settings["event_fee_per_person"] = data["event_fee_per_person"]
     except Exception as e:
         logger.warning(f"Error reading admin settings: {e}")
-    return {"event_fee_per_person": 50.0, "current_phase": "leads"}
+    return in_memory_settings
 
 @api_router.patch("/admin/settings")
 async def admin_update_settings(data: dict, admin=Depends(get_current_admin)):
@@ -1294,11 +1302,13 @@ async def admin_update_settings(data: dict, admin=Depends(get_current_admin)):
         fee = update["event_fee_per_person"]
         if not isinstance(fee, (int, float)) or fee < 0:
             raise HTTPException(400, "event_fee_per_person must be a non-negative number")
+        in_memory_settings["event_fee_per_person"] = fee
             
     if "current_phase" in update:
         phase = update["current_phase"]
         if phase not in ["leads", "active"]:
             raise HTTPException(400, "current_phase must be either 'leads' or 'active'")
+        in_memory_settings["current_phase"] = phase
 
     if not {k for k in update if k != "key"}:
         raise HTTPException(400, "No valid fields provided for update")
@@ -1308,7 +1318,7 @@ async def admin_update_settings(data: dict, admin=Depends(get_current_admin)):
         await supabase.table("event_settings").upsert(update).execute()
     except Exception as e:
         logger.warning(f"Failed to persist settings in Supabase: {e}")
-    return {"message": "Settings updated successfully", "settings": update}
+    return {"message": "Settings updated successfully", "settings": in_memory_settings}
 
 # ==================== LEADS & WAITLIST ENDPOINTS ====================
 
