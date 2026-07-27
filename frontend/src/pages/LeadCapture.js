@@ -13,7 +13,8 @@ import {
   ArrowRight, 
   BellRing, 
   Share2, 
-  ChevronLeft
+  ChevronLeft,
+  MessageCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -87,6 +88,10 @@ export default function LeadCapture() {
   const handleShareWhatsApp = () => {
     const text = `Hey! I just joined the KaDel Graduation Table priority list. If you're graduating soon, reserve early interest before official dates drop! Check it out here: ${window.location.origin}/leads`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
+  };
+
+  const handleJoinWhatsAppGroup = () => {
+    window.open("https://chat.whatsapp.com/", "_blank");
   };
 
   return (
@@ -307,18 +312,26 @@ export default function LeadCapture() {
                   </ul>
                 </div>
 
-                <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+                <div className="pt-2 flex flex-col gap-3 max-w-xs mx-auto w-full">
                   <Button
                     onClick={handleShareWhatsApp}
                     variant="outline"
-                    className="rounded-xl border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 font-semibold gap-2 h-11"
+                    className="rounded-xl border-emerald-500/40 text-emerald-600 hover:bg-emerald-50 font-semibold gap-2 h-11 w-full"
                   >
-                    <Share2 className="h-4 w-4" /> Share with Classmates
+                    <Share2 className="h-4 w-4" /> Share with friends
+                  </Button>
+
+                  <Button
+                    onClick={handleJoinWhatsAppGroup}
+                    className="rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 text-white gap-2 h-11 w-full shadow-md shadow-emerald-600/20"
+                  >
+                    <MessageCircle className="h-4 w-4" /> Join WhatsApp group
                   </Button>
 
                   <Button
                     onClick={() => navigate('/')}
-                    className="rounded-xl font-semibold bg-primary hover:bg-primary/95 text-primary-foreground h-11"
+                    variant="ghost"
+                    className="rounded-xl font-semibold text-muted-foreground hover:text-foreground h-10 w-full"
                   >
                     Back to Home
                   </Button>
