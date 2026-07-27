@@ -91,7 +91,7 @@ export default function LeadCapture() {
   };
 
   const handleJoinWhatsAppGroup = () => {
-    window.open("https://chat.whatsapp.com/", "_blank");
+    window.open("https://chat.whatsapp.com/FS08aeTr9zg7zVdUHA66uy?s=sw&p=i&mlu=4&amv=0", "_blank");
   };
 
   return (
