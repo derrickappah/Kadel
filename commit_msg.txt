@@ -1,0 +1,1 @@
+feat: replace static hero image with dynamic background slideshow of 9 graduation photos & remove photo gallery section

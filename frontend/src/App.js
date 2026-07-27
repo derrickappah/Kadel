@@ -11,7 +11,6 @@ import TrackTable from "@/pages/TrackTable";
 import LeadCapture from "@/pages/LeadCapture";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfService from "@/pages/TermsOfService";
-import Gallery from "@/pages/Gallery";
 
 function App() {
   return (
@@ -22,7 +21,6 @@ function App() {
         <Route path="/leads" element={<LeadCapture />} />
         <Route path="/book" element={<BookingWizard />} />
         <Route path="/track" element={<TrackTable />} />
-        <Route path="/gallery" element={<Gallery />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/payment/callback" element={<PaymentCallback />} />

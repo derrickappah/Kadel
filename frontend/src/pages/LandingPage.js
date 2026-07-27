@@ -1,16 +1,26 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown, Camera, Lock } from "lucide-react";
+import { GraduationCap, Users, Utensils, CreditCard, CheckCircle, ArrowRight, Shield, Phone, Table2, Mail, ShieldCheck, Star, ChevronDown, Lock } from "lucide-react";
 import { toast } from "sonner";
-import PhotoGallery from "@/components/PhotoGallery";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-const HERO_IMG = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2Mzl8MHwxfHNlYXJjaHwyfHxncmFkdWF0aW9uJTIwY2VyZW1vbnklMjBjZWxlYnJhdGlvbnxlbnwwfHx8fDE3ODE1MDg1ODN8MA&ixlib=rb-4.1.0&q=85&w=800";
+
+const HERO_IMAGES = [
+  "/gallery/gallery-1.jpg",
+  "/gallery/gallery-2.jpg",
+  "/gallery/gallery-3.jpg",
+  "/gallery/gallery-4.jpg",
+  "/gallery/gallery-5.jpg",
+  "/gallery/gallery-6.jpg",
+  "/gallery/gallery-7.jpg",
+  "/gallery/gallery-8.jpg",
+  "/gallery/gallery-9.jpg"
+];
 
 const steps = [
   { icon: Users, title: "Register", desc: "Fill in your details and select your graduation date" },
@@ -42,6 +52,7 @@ const testimonials = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const [currentPhase, setCurrentPhase] = useState("leads");
+  const [heroIndex, setHeroIndex] = useState(0);
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -57,14 +68,32 @@ export default function LandingPage() {
     fetchSettings();
   }, []);
 
+  // Auto-slide hero background images
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroIndex((prevIndex) => (prevIndex + 1) % HERO_IMAGES.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Hero */}
-      <section 
-        className="relative bg-cover bg-center bg-no-repeat min-h-screen flex flex-col items-center justify-center py-20 px-4 sm:px-6"
-        style={{ backgroundImage: `url(${HERO_IMG})` }}
-      >
-        {/* Priority Waitlist Alert Banner (Z-axis overlay using system design tokens) */}
+      {/* Hero Section with Dynamic Background Slideshow */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center py-20 px-4 sm:px-6 overflow-hidden">
+        {/* Background Slideshow Layer */}
+        <AnimatePresence mode="popLayout">
+          <motion.div
+            key={heroIndex}
+            initial={{ opacity: 0, scale: 1.05 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.2, ease: "easeInOut" }}
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat pointer-events-none"
+            style={{ backgroundImage: `url(${HERO_IMAGES[heroIndex]})` }}
+          />
+        </AnimatePresence>
+
+        {/* Priority Waitlist Alert Banner */}
         {currentPhase === "leads" && (
           <div className="absolute top-0 left-0 right-0 z-20 bg-card/90 backdrop-blur-md border-b border-border/80 py-3.5 px-4 text-center text-xs sm:text-sm font-medium text-card-foreground flex flex-wrap items-center justify-center gap-2 shadow-md">
             <span className="leading-relaxed">🎓 Official graduation dates releasing soon! Express table interest now for priority access & instant WhatsApp alerts.</span>
@@ -79,8 +108,9 @@ export default function LandingPage() {
         )}
 
         {/* Dark overlay for contrast */}
-        <div className="absolute inset-0 bg-black/60" />
+        <div className="absolute inset-0 bg-black/65 z-0 pointer-events-none" />
 
+        {/* Content Container */}
         <div className="relative z-10 max-w-3xl mx-auto text-center text-white flex-1 flex flex-col items-center justify-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -88,7 +118,6 @@ export default function LandingPage() {
             transition={{ duration: 0.6 }}
             className="space-y-6"
           >
-
             {/* Ghana Kente Accent Bar Centered */}
             <div className="flex justify-center mb-6">
               <div className="flex gap-0.5 h-1.5 w-24 rounded-full overflow-hidden shadow-sm">
@@ -157,6 +186,20 @@ export default function LandingPage() {
           </motion.div>
         </div>
 
+        {/* Slideshow Progress Dots Indicator */}
+        <div className="absolute bottom-6 right-6 z-20 hidden sm:flex items-center gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10">
+          {HERO_IMAGES.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setHeroIndex(idx)}
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                idx === heroIndex ? "w-6 bg-primary" : "w-1.5 bg-white/40 hover:bg-white/70"
+              }`}
+              aria-label={`Go to slide ${idx + 1}`}
+            />
+          ))}
+        </div>
+
         {/* Scroll Down Indicator */}
         <div 
           className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 cursor-pointer text-white/70 hover:text-white transition-colors duration-150" 
@@ -212,19 +255,6 @@ export default function LandingPage() {
               );
             })}
           </div>
-        </div>
-      </section>
-
-      {/* Featured Photo Gallery Section */}
-      <section className="py-24 bg-card/40 border-t border-border/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <PhotoGallery 
-            limit={6} 
-            showCategoryFilter={true} 
-            showViewAllBtn={true} 
-            title="Graduation Experience Gallery"
-            subtitle="Take a look at our past graduation dining celebrations, food spreads, and happy memories."
-          />
         </div>
       </section>
 
@@ -356,11 +386,6 @@ export default function LandingPage() {
                 <li>
                   <button onClick={() => navigate('/track')} className="text-muted-foreground hover:text-foreground transition-colors duration-150" data-testid="footer-track">
                     Track My Table
-                  </button>
-                </li>
-                <li>
-                  <button onClick={() => navigate('/gallery')} className="text-muted-foreground hover:text-foreground transition-colors duration-150 font-semibold text-foreground/90" data-testid="footer-gallery">
-                    Photo Gallery
                   </button>
                 </li>
               </ul>
