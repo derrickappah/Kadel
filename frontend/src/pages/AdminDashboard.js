@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, Navigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,7 +37,15 @@ const NAV_ITEMS = [
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+  const { tab } = useParams();
+  const validTabs = useMemo(() => ["overview", "analytics", "bookings", "leads", "products", "dates", "settings"], []);
+  const activeTab = useMemo(() => {
+    if (tab && validTabs.includes(tab.toLowerCase())) {
+      return tab.toLowerCase();
+    }
+    return "overview";
+  }, [tab, validTabs]);
+
   const [mobileNav, setMobileNav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(localStorage.getItem("admin_theme") || "light");
@@ -611,6 +619,10 @@ export default function AdminDashboard() {
     </div>
   );
 
+  if (tab && !validTabs.includes(tab.toLowerCase())) {
+    return <Navigate to="/admin/overview" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-250 flex flex-col md:flex-row">
       {/* Sidebar - Desktop */}
@@ -632,7 +644,7 @@ export default function AdminDashboard() {
             {NAV_ITEMS.map(item => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => navigate(`/admin/${item.id}`)}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150",
                   activeTab === item.id
@@ -737,7 +749,7 @@ export default function AdminDashboard() {
                   {NAV_ITEMS.map(item => (
                     <button
                       key={item.id}
-                      onClick={() => { setActiveTab(item.id); setMobileNav(false); }}
+                      onClick={() => { navigate(`/admin/${item.id}`); setMobileNav(false); }}
                       className={cn(
                         "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150",
                         activeTab === item.id
@@ -813,7 +825,7 @@ export default function AdminDashboard() {
                 <Card className="border-border/80 shadow-md rounded-2xl overflow-hidden bg-card">
                   <CardHeader className="flex flex-row items-center justify-between bg-secondary/10 border-b border-border/45 px-6 py-4">
                     <CardTitle className="font-display text-lg font-bold text-foreground">Recent Bookings</CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setActiveTab("bookings")} className="text-xs font-bold text-muted-foreground hover:text-foreground">
+                    <Button variant="ghost" size="sm" onClick={() => navigate("/admin/bookings")} className="text-xs font-bold text-muted-foreground hover:text-foreground">
                       View All
                     </Button>
                   </CardHeader>

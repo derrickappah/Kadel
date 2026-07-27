@@ -1,5 +1,5 @@
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import LandingPage from "@/pages/LandingPage";
 import BookingWizard from "@/pages/BookingWizard";
@@ -27,7 +27,8 @@ function App() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/payment/callback" element={<PaymentCallback />} />
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
+        <Route path="/admin/:tab" element={<AdminDashboard />} />
       </Routes>
     </BrowserRouter>
   );

@@ -237,9 +237,24 @@ export default function LeadCapture() {
                         )}
                       </Button>
 
-                      <p className="text-[11px] text-center text-muted-foreground leading-snug">
-                        By joining, you agree to receive SMS & Email notifications from KaDel regarding graduation dates & table bookings. Zero spam.
-                      </p>
+                      <div className="rounded-2xl bg-secondary/40 border border-border/80 p-4 text-xs space-y-2.5 text-left">
+                        <div className="font-bold text-foreground text-xs uppercase tracking-wider text-muted-foreground">
+                          Table Reservation Prices
+                        </div>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <div className="bg-card p-2.5 rounded-xl border border-border/60 text-center shadow-sm">
+                            <span className="block text-[11px] font-medium text-muted-foreground">1–10 Guests</span>
+                            <span className="font-extrabold text-foreground text-sm">GH¢900</span>
+                          </div>
+                          <div className="bg-card p-2.5 rounded-xl border border-border/60 text-center shadow-sm">
+                            <span className="block text-[11px] font-medium text-muted-foreground">11–20 Guests</span>
+                            <span className="font-extrabold text-foreground text-sm">GH¢1,800</span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-snug pt-1">
+                          <strong className="text-foreground font-semibold">NB:</strong> Catering menu options will be available after the official graduation date is released.
+                        </p>
+                      </div>
                     </form>
                   </CardContent>
                 </Card>
