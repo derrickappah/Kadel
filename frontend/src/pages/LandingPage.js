@@ -26,21 +26,39 @@ const steps = [
 const testimonials = [
   {
     name: "Abena Mensah",
-    program: "BSc. Computer Science, Class of 2025",
-    quote: "Reserving a table was extremely easy, and the catering was incredible. It made my graduation dinner stress-free and truly special for my family.",
+    program: "BSc. Business Administration, Class of 2025",
+    quote: "I love the Reception! Everything was beautifully organized and elegant.",
     initials: "AM"
   },
   {
     name: "Kwame Osei",
     program: "BA. Communication Studies, Class of 2025",
-    quote: "Loved the food and drink selections! Paystack checkout was fast, and tracking my reservation details was seamless. Highly recommend KaDel.",
+    quote: "The MC is good! Highly engaging and kept the energy high throughout the event.",
     initials: "KO"
   },
   {
     name: "Naa Adjeley",
     program: "BSc. Business Administration, Class of 2025",
-    quote: "Customer support was amazing when I wanted to add more guests. The table setup was beautiful and my guests had a wonderful time.",
+    quote: "Good Event! Everything from start to finish was well coordinated.",
     initials: "NA"
+  },
+  {
+    name: "Emmanuel Boateng",
+    program: "BSc. Business Administration, Class of 2025",
+    quote: "Thank you KaDel you made my family happy.",
+    initials: "EB"
+  },
+  {
+    name: "Efua Sarfo",
+    program: "LLB. Law, Class of 2025",
+    quote: "Awwww KaDel Ghana. Highly recommend them.",
+    initials: "ES"
+  },
+  {
+    name: "Kofi Mensah",
+    program: "BSc. Information Technology, Class of 2025",
+    quote: "The musics was so Good!.",
+    initials: "KM"
   }
 ];
 
@@ -125,7 +143,7 @@ export default function LandingPage() {
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white leading-tight">
               Celebrate Your Graduation in Style
             </h1>
-            
+
             <p className="text-base sm:text-lg md:text-xl text-zinc-200 max-w-xl mx-auto leading-relaxed font-light">
               {currentPhase === "active"
                 ? "Reserve a Table with Us. Choose your menu, and pay securely. Everything you need for a memorable celebration."
@@ -136,19 +154,19 @@ export default function LandingPage() {
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3.5">
               {currentPhase === "active" ? (
                 <>
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 active:scale-98 transition-all flex items-center justify-center gap-2"
-                    onClick={() => navigate('/book')} 
+                    onClick={() => navigate('/book')}
                     data-testid="hero-book-now"
                   >
                     Reserve a Table <ArrowRight className="h-5 w-5" />
                   </Button>
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
+                  <Button
+                    size="lg"
+                    variant="outline"
                     className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-white/10 hover:bg-white/20 text-white border-white/25 backdrop-blur-sm font-semibold active:scale-98 transition-all"
-                    onClick={() => navigate('/track')} 
+                    onClick={() => navigate('/track')}
                     data-testid="hero-track-table"
                   >
                     Track Table
@@ -156,21 +174,21 @@ export default function LandingPage() {
                 </>
               ) : (
                 <>
-                  <Button 
-                    size="lg" 
+                  <Button
+                    size="lg"
                     className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 active:scale-98 transition-all flex items-center justify-center gap-2"
-                    onClick={() => navigate('/leads')} 
+                    onClick={() => navigate('/leads')}
                     data-testid="hero-join-waitlist"
                   >
                     Join Priority List <ArrowRight className="h-5 w-5" />
                   </Button>
-                  <Button 
-                    size="lg" 
-                    variant="outline" 
+                  <Button
+                    size="lg"
+                    variant="outline"
                     className="rounded-xl text-base px-8 py-6 w-full sm:w-auto bg-white/10 text-white/70 border-white/20 backdrop-blur-sm font-semibold opacity-80 flex items-center justify-center gap-2 cursor-pointer hover:bg-white/15 active:scale-98 transition-all"
                     onClick={() => {
                       toast.info("Direct table reservations are locked until official graduation dates drop. Join the priority list to get early access!");
-                    }} 
+                    }}
                     data-testid="hero-book-now"
                   >
                     <Lock className="h-4.5 w-4.5 text-amber-400 shrink-0" /> Reserve Table Directly
@@ -187,17 +205,16 @@ export default function LandingPage() {
             <button
               key={idx}
               onClick={() => setHeroIndex(idx)}
-              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                idx === heroIndex ? "w-6 bg-primary" : "w-1.5 bg-white/40 hover:bg-white/70"
-              }`}
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${idx === heroIndex ? "w-6 bg-primary" : "w-1.5 bg-white/40 hover:bg-white/70"
+                }`}
               aria-label={`Go to slide ${idx + 1}`}
             />
           ))}
         </div>
 
         {/* Scroll Down Indicator */}
-        <div 
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 cursor-pointer text-white/70 hover:text-white transition-colors duration-150" 
+        <div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-1.5 cursor-pointer text-white/70 hover:text-white transition-colors duration-150"
           onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
         >
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/50">Scroll Down</span>
@@ -324,16 +341,16 @@ export default function LandingPage() {
               <h2 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight text-foreground">
                 Ready to Celebrate?
               </h2>
-              
+
               <p className="text-muted-foreground max-w-md mx-auto text-base sm:text-lg leading-relaxed mt-3 mb-8">
                 Don't miss out on securing your spot. Reserve a table with us today and make your milestone celebration unforgettable.
               </p>
 
               <div className="pt-2 flex justify-center">
-                <Button 
-                  size="lg" 
-                  className="w-full sm:w-auto rounded-xl text-sm sm:text-base px-6 sm:px-10 py-5 sm:py-6 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center" 
-                  onClick={() => navigate('/book')} 
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto rounded-xl text-sm sm:text-base px-6 sm:px-10 py-5 sm:py-6 bg-primary hover:bg-primary/95 text-primary-foreground font-semibold shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center"
+                  onClick={() => navigate('/book')}
                   data-testid="cta-book-now"
                 >
                   Reserve a Table with Us <ArrowRight className="ml-2 h-5 w-5 shrink-0" />

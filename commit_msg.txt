@@ -1,1 +1,0 @@
-style: set image 9 (gallery-9.jpg) as the first hero slideshow image
