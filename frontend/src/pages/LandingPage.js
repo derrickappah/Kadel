@@ -62,6 +62,8 @@ const testimonials = [
   }
 ];
 
+
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [currentPhase, setCurrentPhase] = useState("leads");
@@ -269,6 +271,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+
 
       {/* Testimonials Section */}
       <section className="py-24 bg-background border-t border-border/50">

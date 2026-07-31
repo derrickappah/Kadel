@@ -34,6 +34,25 @@ export default function LeadCapture() {
 
   const [loading, setLoading] = useState(false);
   const [submittedLead, setSubmittedLead] = useState(null);
+  const [eventFee, setEventFee] = useState(50);
+
+  React.useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
+        const res = await fetch(`${backendUrl}/api/event-settings`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.event_fee_per_person) {
+            setEventFee(data.event_fee_per_person);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load settings:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -257,7 +276,7 @@ export default function LeadCapture() {
                           </div>
                         </div>
                         <p className="text-[11px] text-muted-foreground leading-snug pt-1">
-                          <strong className="text-foreground font-semibold">NB:</strong> Catering menu options will be available after the official graduation date is released.
+                          <strong className="text-foreground font-semibold">NB:</strong> Prices for Catering packages will be announced soon. This service is optional. Stay tuned!
                         </p>
                       </div>
                     </form>

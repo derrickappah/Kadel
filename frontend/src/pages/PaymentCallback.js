@@ -42,8 +42,12 @@ export default function PaymentCallback() {
           }
         } catch {
           if (!cancelled) {
-            setStatus("success");
-            setBooking({ reservation_code: code || "TEST", table_number: "T1" });
+            if (code) {
+              setBooking({ reservation_code: code });
+              setStatus("success");
+            } else {
+              setStatus("failed");
+            }
           }
         }
         return;
