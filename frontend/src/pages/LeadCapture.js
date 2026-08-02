@@ -29,7 +29,8 @@ export default function LeadCapture() {
     fullName: "",
     email: "",
     phone: "",
-    course: ""
+    course: "",
+    estimatedGuests: "10"
   });
 
   const [loading, setLoading] = useState(false);
@@ -62,20 +63,20 @@ export default function LeadCapture() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.course.trim()) {
-      toast.error("Please fill in all required fields (Name, Email, Phone, and Course)");
+    if (!formData.fullName.trim() || !formData.email.trim() || !formData.phone.trim() || !formData.course.trim() || !formData.estimatedGuests) {
+      toast.error("Please fill in all required fields (Name, Email, Phone, Course, and Expected Guests)");
       return;
     }
 
     setLoading(true);
 
     const payload = {
-      full_name: formData.fullName,
-      email: formData.email,
-      phone: formData.phone,
+      full_name: formData.fullName.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
       institution: "General",
-      course: formData.course,
-      estimated_guests: 10,
+      course: formData.course.trim(),
+      estimated_guests: parseInt(formData.estimatedGuests) || 10,
       expected_graduation_period: "Pending Announcement",
       notes: ""
     };
@@ -225,21 +226,42 @@ export default function LeadCapture() {
                         </div>
                       </div>
 
-                      {/* Course */}
-                      <div className="space-y-2">
-                        <Label htmlFor="course" className="text-sm font-semibold flex items-center gap-1.5">
-                          <BookOpen className="h-4 w-4 text-muted-foreground" />
-                          Course / Program of Study <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="course"
-                          name="course"
-                          placeholder="e.g. BSc. Business Administration"
-                          value={formData.course}
-                          onChange={handleChange}
-                          required
-                          className="rounded-xl h-11 border-border/80 focus-visible:ring-primary"
-                        />
+                      {/* Course & Expected Guests Grid */}
+                      <div className="grid sm:grid-cols-3 gap-4">
+                        <div className="sm:col-span-2 space-y-2">
+                          <Label htmlFor="course" className="text-sm font-semibold flex items-center gap-1.5">
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            Course / Program of Study <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="course"
+                            name="course"
+                            placeholder="e.g. BSc. Business Administration"
+                            value={formData.course}
+                            onChange={handleChange}
+                            required
+                            className="rounded-xl h-11 border-border/80 focus-visible:ring-primary"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="estimatedGuests" className="text-sm font-semibold flex items-center gap-1.5">
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            Expected Guests <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            id="estimatedGuests"
+                            name="estimatedGuests"
+                            type="number"
+                            min="1"
+                            max="100"
+                            placeholder="10"
+                            value={formData.estimatedGuests}
+                            onChange={handleChange}
+                            required
+                            className="rounded-xl h-11 border-border/80 focus-visible:ring-primary"
+                          />
+                        </div>
                       </div>
 
                       {/* Submit */}

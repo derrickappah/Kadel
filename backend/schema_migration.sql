@@ -110,6 +110,28 @@ CREATE TABLE IF NOT EXISTS public.payments (
 CREATE INDEX IF NOT EXISTS idx_payments_ref ON public.payments(reference);
 
 
--- 7. Grant Table Permissions for Supabase Roles
+-- 7. Table Permissions & Row Level Security (RLS)
 GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role, anon, authenticated;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, service_role, anon, authenticated;
+
+-- Enable Row Level Security (RLS) on all public tables
+ALTER TABLE public.graduation_dates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.event_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
+
+-- Public read-only policies for public catalog & settings
+DROP POLICY IF EXISTS "Allow public read access to products" ON public.products;
+CREATE POLICY "Allow public read access to products" ON public.products
+    FOR SELECT TO anon, authenticated USING (is_active = true);
+
+DROP POLICY IF EXISTS "Allow public read access to graduation_dates" ON public.graduation_dates;
+CREATE POLICY "Allow public read access to graduation_dates" ON public.graduation_dates
+    FOR SELECT TO anon, authenticated USING (is_active = true);
+
+DROP POLICY IF EXISTS "Allow public read access to event_settings" ON public.event_settings;
+CREATE POLICY "Allow public read access to event_settings" ON public.event_settings
+    FOR SELECT TO anon, authenticated USING (true);
+
