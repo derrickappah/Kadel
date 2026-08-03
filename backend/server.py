@@ -1636,6 +1636,65 @@ async def admin_delete_lead(lead_id: str, admin=Depends(get_current_admin)):
 
     return {"message": "Lead deleted successfully"}
 
+@api_router.post("/admin/leads/resend-all")
+async def admin_resend_all_lead_emails(admin=Depends(get_current_admin)):
+    db_leads = []
+    try:
+        res = await supabase.table("leads").select("*").execute()
+        if res.data:
+            db_leads = res.data
+    except Exception as e:
+        logger.warning(f"Could not fetch leads from Supabase: {e}")
+
+    combined = list(db_leads)
+    existing_ids = {l.get("id") for l in db_leads}
+    for mem_l in in_memory_leads:
+        if mem_l["id"] not in existing_ids:
+            combined.append(mem_l)
+
+    sent_count = 0
+    failed_count = 0
+    for lead in combined:
+        if lead.get("email"):
+            success = await send_lead_confirmation_email(lead)
+            if success:
+                sent_count += 1
+            else:
+                failed_count += 1
+
+    return {
+        "message": f"Waitlist emails sent to {sent_count} existing leads.",
+        "total_leads": len(combined),
+        "sent_count": sent_count,
+        "failed_count": failed_count
+    }
+
+@api_router.post("/admin/leads/{lead_id}/resend-email")
+async def admin_resend_single_lead_email(lead_id: str, admin=Depends(get_current_admin)):
+    db_leads = []
+    try:
+        res = await supabase.table("leads").select("*").eq("id", lead_id).execute()
+        if res.data:
+            db_leads = res.data
+    except Exception as e:
+        logger.warning(f"Could not fetch lead from Supabase: {e}")
+
+    lead_doc = db_leads[0] if db_leads else None
+    if not lead_doc:
+        for mem_l in in_memory_leads:
+            if mem_l["id"] == lead_id:
+                lead_doc = mem_l
+                break
+
+    if not lead_doc:
+        raise HTTPException(404, "Lead not found")
+
+    success = await send_lead_confirmation_email(lead_doc)
+    if not success:
+        raise HTTPException(500, "Failed to send lead email. Please check server email logs.")
+
+    return {"message": f"Confirmation email resent to {lead_doc.get('email')}"}
+
 # Include router
 app.include_router(api_router)
 

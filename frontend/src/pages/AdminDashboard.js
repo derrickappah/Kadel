@@ -170,6 +170,33 @@ export default function AdminDashboard() {
     }
   };
 
+  const resendLeadEmail = async (leadId, email) => {
+    try {
+      const res = await axios.post(`${API}/admin/leads/${leadId}/resend-email`, {}, authHeaders());
+      toast.success(res.data.message || `Confirmation email sent to ${email}`);
+    } catch (err) {
+      handleAuthError(err, "Failed to resend confirmation email.");
+    }
+  };
+
+  const resendAllLeadEmails = async () => {
+    if (!leads.length) {
+      toast.error("No leads available to email.");
+      return;
+    }
+    if (!window.confirm(`Send confirmation emails to all ${leads.length} existing leads on the priority waitlist?`)) {
+      return;
+    }
+    const toastId = toast.loading("Sending confirmation emails to existing leads...");
+    try {
+      const res = await axios.post(`${API}/admin/leads/resend-all`, {}, authHeaders());
+      toast.success(res.data.message || "Confirmation emails sent successfully!", { id: toastId });
+    } catch (err) {
+      toast.dismiss(toastId);
+      handleAuthError(err, "Failed to send lead emails.");
+    }
+  };
+
   const exportLeadsCSV = () => {
     if (!leads.length) {
       toast.error("No leads available to export");
@@ -1551,9 +1578,14 @@ export default function AdminDashboard() {
                     <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">Priority Reservation Leads</h2>
                     <p className="text-sm text-muted-foreground mt-1">Manage interest entries collected while official graduation dates are pending.</p>
                   </div>
-                  <Button onClick={exportLeadsCSV} variant="outline" className="rounded-xl font-bold border-border/80 gap-2">
-                    <Download className="h-4 w-4" /> Export CSV
-                  </Button>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <Button onClick={resendAllLeadEmails} variant="outline" className="rounded-xl font-bold border-border/80 gap-2 text-primary hover:text-primary">
+                      <Mail className="h-4 w-4" /> Email All Existing Leads
+                    </Button>
+                    <Button onClick={exportLeadsCSV} variant="outline" className="rounded-xl font-bold border-border/80 gap-2">
+                      <Download className="h-4 w-4" /> Export CSV
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Lead Summary Cards */}
@@ -1687,6 +1719,15 @@ export default function AdminDashboard() {
                                 >
                                   WhatsApp
                                 </a>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Resend Confirmation Email"
+                                  className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                  onClick={() => resendLeadEmail(lead.id, lead.email)}
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
