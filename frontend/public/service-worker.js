@@ -20,7 +20,7 @@ self.addEventListener('install', event => {
 
 // Network-First for navigation, Stale-While-Revalidate for other static assets
 self.addEventListener('fetch', event => {
-  if (event.request.method !== 'GET') return;
+  if (event.request.method !== 'GET' || !event.request.url.startsWith('http')) return;
 
   const url = new URL(event.request.url);
 

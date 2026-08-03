@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Package, Receipt, Table2, Calendar, Settings, LogOut,
   Plus, Pencil, Trash2, Users, CreditCard, Loader2, Menu, X, CheckCircle,
   BarChart3, TrendingUp, Search, ArrowUpDown, ChevronLeft, ChevronRight,
-  Download, Sun, Moon, Sparkles, CheckSquare, Square, SlidersHorizontal, UserCheck
+  Download, Sun, Moon, Sparkles, CheckSquare, Square, SlidersHorizontal, UserCheck, Mail
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
