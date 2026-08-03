@@ -540,6 +540,209 @@ Congratulations on your graduation!
         logger.error(f"SMTP Fallback email send failed: {e}")
         return False
 
+
+async def send_lead_confirmation_email(lead):
+    """Send priority waitlist confirmation email using Resend API, falling back to SMTP if configured"""
+    resend_key = os.environ.get('RESEND_API_KEY', '')
+    resend_from = os.environ.get('RESEND_FROM_EMAIL', 'reservations@kadelgh.com')
+    
+    if resend_from:
+        resend_from = resend_from.strip().strip('\'"')
+        
+    if not resend_from:
+        resend_from = "reservations@kadelgh.com"
+
+    if "@" not in resend_from:
+        resend_from = f"reservations@{resend_from}"
+
+    if "<" in resend_from and ">" in resend_from:
+        parts = resend_from.split("<")
+        name = parts[0].strip().strip('\'"')
+        email = parts[1].replace(">", "").strip().strip('\'"')
+        if name:
+            resend_from = f"{name} <{email}>"
+        else:
+            resend_from = email
+    elif "@" in resend_from and "<" not in resend_from:
+        resend_from = f"KaDel Ghana <{resend_from}>"
+
+    full_name = lead.get('full_name', 'Graduate')
+    lead_code = lead.get('lead_code', 'N/A')
+    course = lead.get('course', 'Graduation Program')
+    phone = lead.get('phone', 'N/A')
+    email_addr = lead.get('email', '')
+    estimated_guests = lead.get('estimated_guests', 10)
+    
+    if not email_addr:
+        logger.warning(f"No email address for lead {lead_code}. Skipping confirmation email.")
+        return False
+
+    whatsapp_group_url = "https://chat.whatsapp.com/FS08aeTr9zg7zVdUHA66uy?s=sw&p=i&mlu=4&amv=0"
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Priority Waitlist Registration</title>
+      <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f7; margin: 0; padding: 20px; color: #1d1d1f; }}
+        .card {{ max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }}
+        .kente {{ height: 6px; background: linear-gradient(90deg, #FF3300 0%, #FF3300 33%, #FFCC00 33%, #FFCC00 66%, #009933 66%, #009933 100%); }}
+        .content {{ padding: 32px 28px; }}
+        .header {{ text-align: center; padding-bottom: 24px; border-bottom: 1px solid #f0f0f5; }}
+        .logo {{ font-size: 24px; font-weight: 800; color: #111827; letter-spacing: -0.5px; }}
+        .ref-box {{ background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; padding: 16px; text-align: center; margin: 24px 0; }}
+        .ref-code {{ font-family: monospace; font-size: 24px; font-weight: 900; color: #166534; letter-spacing: 2px; }}
+        .details-table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        .details-table td {{ padding: 10px 0; border-bottom: 1px solid #f0f0f5; font-size: 14px; }}
+        .label {{ color: #6b7280; font-weight: 500; }}
+        .val {{ color: #111827; font-weight: 700; text-align: right; }}
+        .btn {{ display: block; text-align: center; background: #16a34a; color: #ffffff !important; font-weight: 700; text-decoration: none; padding: 14px 20px; border-radius: 12px; margin-top: 20px; font-size: 15px; }}
+        .price-box {{ background: #fafafa; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-top: 20px; text-align: center; }}
+        .footer {{ text-align: center; font-size: 12px; color: #9ca3af; margin-top: 24px; padding-top: 16px; border-top: 1px solid #f0f0f5; }}
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="kente"></div>
+        <div class="content">
+          <div class="header">
+            <div class="logo">KaDel Ghana</div>
+            <p style="margin: 6px 0 0; color: #6b7280; font-size: 14px;">Priority Graduation Waitlist Confirmed</p>
+          </div>
+
+          <p style="font-size: 15px; line-height: 1.6; margin-top: 24px;">Hello <strong>{full_name}</strong>,</p>
+          <p style="font-size: 14px; line-height: 1.6; color: #4b5563;">Thank you for registering your table interest! You are officially on the KaDel Priority Graduation Waitlist.</p>
+
+          <div class="ref-box">
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #15803d; letter-spacing: 1px;">Your VIP Priority Reference</div>
+            <div class="ref-code">{lead_code}</div>
+          </div>
+
+          <table class="details-table">
+            <tr><td class="label">Graduate Name</td><td class="val">{full_name}</td></tr>
+            <tr><td class="label">Course / Program</td><td class="val">{course}</td></tr>
+            <tr><td class="label">Expected Guests</td><td class="val">{estimated_guests} Guests</td></tr>
+            <tr><td class="label">Phone / WhatsApp</td><td class="val">{phone}</td></tr>
+            <tr><td class="label">Status</td><td class="val" style="color: #16a34a;">Priority Registered</td></tr>
+          </table>
+
+          <div style="background: #f9fafb; border-left: 4px solid #16a34a; padding: 14px 16px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 13px; font-weight: 700; color: #111827;">🔔 What happens next?</p>
+            <ul style="margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: #4b5563; line-height: 1.5;">
+              <li>We track official graduation date releases closely.</li>
+              <li>As soon as dates drop, we send an instant SMS & WhatsApp alert to <strong>{phone}</strong>.</li>
+              <li>You get priority access to confirm your table selection before public release.</li>
+            </ul>
+          </div>
+
+          <div class="price-box">
+            <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: #6b7280; letter-spacing: 1px;">Table Reservation Prices</div>
+            <div style="margin-top: 8px; font-size: 13px; color: #374151;">
+              <strong>1–10 Guests:</strong> GH¢900 &nbsp;|&nbsp; <strong>11–20 Guests:</strong> GH¢1,800
+            </div>
+            <div style="font-size: 11px; color: #6b7280; margin-top: 6px; font-style: italic;">
+              NB: Catering menu options will be available after the official graduation date is released.
+            </div>
+          </div>
+
+          <a href="{whatsapp_group_url}" class="btn" target="_blank">📱 Join Official WhatsApp Group</a>
+
+          <div class="footer">
+            &copy; {datetime.now().year} KaDel Ghana. All rights reserved.<br>
+            If you have any questions, reply directly to this email or reach us on WhatsApp.
+          </div>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+
+    plain_content = f"""KaDel Ghana - Priority Waitlist Registration
+
+Hello {full_name},
+
+Thank you for joining the KaDel Priority Graduation Waitlist!
+
+VIP Priority Code: {lead_code}
+
+Registration Details:
+  Graduate Name: {full_name}
+  Course / Program: {course}
+  Expected Guests: {estimated_guests} Guests
+  Phone: {phone}
+  Status: Priority Registered
+
+Table Reservation Prices:
+  1-10 Guests: GHc900
+  11-20 Guests: GHc1,800
+  (Catering menu options available after official graduation dates release)
+
+Join our official WhatsApp group: {whatsapp_group_url}
+
+Congratulations on your upcoming graduation!
+- KaDel Ghana Team"""
+
+    if resend_key:
+        try:
+            async with httpx.AsyncClient() as http_client:
+                headers = {
+                    "Authorization": f"Bearer {resend_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "from": resend_from,
+                    "to": [email_addr],
+                    "subject": f"🎓 Priority Waitlist Confirmed - Reference: {lead_code}",
+                    "html": html_content,
+                    "text": plain_content
+                }
+                res = await http_client.post("https://api.resend.com/emails", json=payload, headers=headers)
+                if res.status_code in [200, 201]:
+                    logger.info(f"Priority waitlist confirmation email sent via Resend to {email_addr}")
+                    return True
+                else:
+                    logger.error(f"Resend email failed for lead (Status {res.status_code}): {res.text}")
+        except Exception as e:
+            logger.error(f"Error sending lead confirmation email via Resend: {e}")
+
+    # SMTP Fallback
+    smtp_host = os.environ.get('SMTP_HOST', '')
+    smtp_user = os.environ.get('SMTP_USER', '')
+    smtp_pass = os.environ.get('SMTP_PASS', '')
+    
+    if not smtp_host or not smtp_user:
+        logger.info(f"Email service not configured. Lead confirmation for {lead_code} logged only.")
+        return False
+        
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        msg = MIMEMultipart('alternative')
+        msg['From'] = smtp_user
+        msg['To'] = email_addr
+        msg['Subject'] = f"🎓 Priority Waitlist Confirmed - Reference: {lead_code}"
+        
+        msg.attach(MIMEText(plain_content, 'plain'))
+        msg.attach(MIMEText(html_content, 'html'))
+        
+        smtp_port = int(os.environ.get('SMTP_PORT', 587))
+        server = smtplib.SMTP(smtp_host, smtp_port)
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+        server.quit()
+        logger.info(f"Lead confirmation email sent via SMTP fallback to {email_addr}")
+        return True
+    except Exception as e:
+        logger.error(f"SMTP Fallback email send failed for lead: {e}")
+        return False
+
+
 async def send_confirmation_sms(booking):
     """Send SMS confirmation using Arkesel API"""
     sms_key = os.environ.get('SMS_API_KEY', '')
@@ -1365,6 +1568,12 @@ async def create_lead(lead: LeadCreate):
 
     if not saved_to_db:
         in_memory_leads.insert(0, lead_doc)
+
+    # Send priority waitlist confirmation email
+    try:
+        await send_lead_confirmation_email(lead_doc)
+    except Exception as e:
+        logger.warning(f"Could not send lead confirmation email: {e}")
 
     return {
         "status": "success",
