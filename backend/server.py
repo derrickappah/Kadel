@@ -99,6 +99,31 @@ def sanitize_callback_url(client_url: Optional[str]) -> str:
         pass
     return default_callback
 
+TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '')
+
+async def verify_turnstile_token(token: Optional[str], client_ip: str) -> bool:
+    """Validate Cloudflare Turnstile bot protection token if secret key is configured"""
+    if not TURNSTILE_SECRET_KEY:
+        # Non-enforcing mode when secret is not configured
+        return True
+    if not token or not isinstance(token, str):
+        return False
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={
+                    "secret": TURNSTILE_SECRET_KEY,
+                    "response": token,
+                    "remoteip": client_ip
+                },
+                timeout=5
+            )
+            return res.json().get("success", False)
+    except Exception as e:
+        logger.error(f"Turnstile verification error: {e}")
+        return False
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
@@ -262,21 +287,22 @@ async def auto_assign_table(graduation_date: str):
 
 
 async def adjust_product_stock(product_id: str, amount: int):
-    # FIX: Guard against stock going negative and prevent race conditions using Optimistic Concurrency Control (OCC) retry loop.
+    # Guard against stock going negative and prevent race conditions using Optimistic Concurrency Control (OCC) retry loop.
     max_retries = 5
     for attempt in range(max_retries):
-        res = await supabase.table("products").select("stock").eq("id", product_id).execute()
+        res = await supabase.table("products").select("stock, name").eq("id", product_id).execute()
         if not res.data:
             logger.warning(f"Product {product_id} not found for stock adjustment")
             return False
-        current = res.data[0]["stock"]
+        product_data = res.data[0]
+        current = product_data.get("stock", 0)
         new_stock = current + amount
         if new_stock < 0:
-            logger.warning(
-                f"Stock adjustment for product {product_id} would result in negative stock "
-                f"(current={current}, adjustment={amount}). Clamping to 0."
+            logger.error(
+                f"Insufficient stock for product {product_id} ('{product_data.get('name')}') to satisfy adjustment: "
+                f"current={current}, requested adjustment={amount}."
             )
-            new_stock = 0
+            return False
             
         update_res = await supabase.table("products").update({"stock": new_stock})\
             .eq("id", product_id)\
@@ -970,14 +996,26 @@ async def get_event_settings():
     return in_memory_settings
 
 @api_router.post("/bookings")
-async def create_booking(booking: BookingCreate):
+async def create_booking(booking: BookingCreate, request: Request):
+    ip = get_client_ip(request)
+    if not check_rate_limit(f"booking:{ip}", max_requests=20, window_seconds=60):
+        raise HTTPException(429, "Too many booking attempts. Please try again shortly.")
+
+    # Validate event phase: reject direct reservations if phase is not 'active'
+    res_settings = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
+    settings = res_settings.data[0] if res_settings.data else in_memory_settings
+    current_phase = settings.get("current_phase") or in_memory_settings.get("current_phase", "leads")
+    if current_phase != "active":
+        raise HTTPException(
+            status_code=403,
+            detail="Direct table reservations are currently locked until official graduation dates drop. Please join the priority waitlist."
+        )
+
     # Validate graduation date exists and is active
     res_dates = await supabase.table("graduation_dates").select("*").eq("is_active", True).eq("date_label", booking.graduation_date).execute()
     if not res_dates.data:
         raise HTTPException(400, f"Graduation date '{booking.graduation_date}' is not valid or no longer active")
 
-    res_settings = await supabase.table("event_settings").select("*").eq("key", "settings").execute()
-    settings = res_settings.data[0] if res_settings.data else {}
     event_fee = settings.get("event_fee_per_person", 0.0)
     charged_blocks = (booking.attendees_count + 9) // 10
     base_cost = charged_blocks * event_fee
@@ -1067,9 +1105,9 @@ async def initialize_payment(data: PaymentInit):
     if not booking:
         raise HTTPException(404, "Booking not found")
 
-    # Guard against BOLA/IDOR: Validate secret token if configured on booking
+    # Guard against BOLA/IDOR: Validate secret token strictly with constant-time comparison
     expected_secret = booking.get("booking_secret")
-    if expected_secret and expected_secret != data.booking_secret:
+    if not expected_secret or not data.booking_secret or not hmac.compare_digest(str(expected_secret), str(data.booking_secret)):
         raise HTTPException(403, "Invalid or missing booking authorization secret")
 
     if booking["status"] == "confirmed":
@@ -1174,9 +1212,13 @@ async def initialize_payment(data: PaymentInit):
 
 
 @api_router.get("/payments/verify/{reference}")
-async def verify_payment(reference: str):
+async def verify_payment(reference: str, request: Request):
     """Check DB for a confirmed payment by Moolre externalref.
     If still pending, actively query Moolre's API to pull latest status."""
+    ip = get_client_ip(request)
+    if not check_rate_limit(f"verify_pay:{ip}", max_requests=30, window_seconds=60):
+        raise HTTPException(429, "Too many payment verification requests. Please try again later.")
+
     res_pay = await supabase.table("payments").select("*").eq("reference", reference).execute()
     payment = res_pay.data[0] if res_pay.data else None
 
@@ -1196,6 +1238,7 @@ async def verify_payment(reference: str):
             if "phone" in serialized:
                 serialized["phone"] = mask_phone(serialized["phone"])
             serialized.pop("payment_reference", None)
+            serialized.pop("booking_secret", None)
         return {"status": "success", "booking": serialized}
 
     # Payment exists but still pending — query Moolre directly for live status
@@ -1234,6 +1277,7 @@ async def verify_payment(reference: str):
                             if "phone" in serialized:
                                 serialized["phone"] = mask_phone(serialized["phone"])
                             serialized.pop("payment_reference", None)
+                            serialized.pop("booking_secret", None)
                         return {"status": "success", "booking": serialized}
         except Exception as e:
             logger.error(f"Moolre status check error for {reference}: {e}")
@@ -1435,13 +1479,14 @@ async def get_booking_by_code(reservation_code: str, request: Request):
         raise HTTPException(404, "Booking not found")
         
     serialized = serialize_doc(booking)
-    # Mask PII to protect customer privacy against identifier harvesting
+    # Mask PII and strip authorization secrets to protect customer privacy against identifier harvesting & BOLA
     if serialized:
         if "email" in serialized:
             serialized["email"] = mask_email(serialized["email"])
         if "phone" in serialized:
             serialized["phone"] = mask_phone(serialized["phone"])
         serialized.pop("payment_reference", None)
+        serialized.pop("booking_secret", None)
     return serialized
 
 # ==================== ADMIN ROUTES ====================
@@ -1685,9 +1730,40 @@ async def admin_update_settings(data: dict, admin=Depends(get_current_admin)):
 in_memory_leads = []
 
 @api_router.post("/leads")
-async def create_lead(lead: LeadCreate):
+async def create_lead(lead: LeadCreate, request: Request):
+    ip = get_client_ip(request)
+    if not check_rate_limit(f"lead_ip:{ip}", max_requests=15, window_seconds=60):
+        raise HTTPException(429, "Too many requests. Please try again shortly.")
+
     if not lead.full_name.strip() or not lead.email.strip() or not lead.phone.strip() or not lead.course.strip():
         raise HTTPException(400, "Full name, email, phone number, and course are required.")
+    
+    clean_email = lead.email.strip().lower()
+    now_utc = datetime.now(timezone.utc)
+    now_iso = now_utc.isoformat()
+
+    # Deduplication & Toll Fraud Prevention: Check if this email was registered recently
+    try:
+        res_existing = await supabase.table("leads").select("*").eq("email", clean_email).execute()
+        if res_existing.data and len(res_existing.data) > 0:
+            existing_lead = res_existing.data[0]
+            last_sent = existing_lead.get("last_email_sent_at") or existing_lead.get("created_at")
+            if last_sent:
+                try:
+                    last_dt = datetime.fromisoformat(last_sent.replace("Z", "+00:00"))
+                    elapsed = (now_utc - last_dt).total_seconds()
+                    if elapsed < 300:
+                        # Return existing registration without re-dispatching email to prevent spam/toll fraud
+                        return {
+                            "status": "success",
+                            "lead_code": existing_lead.get("lead_code", ""),
+                            "message": "You are already on the priority waitlist! Confirmation was recently sent.",
+                            "data": existing_lead
+                        }
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.warning(f"Lead deduplication check notice: {e}")
     
     lead_code = generate_lead_code()
     for _ in range(10):
@@ -1704,7 +1780,7 @@ async def create_lead(lead: LeadCreate):
         "id": lead_id,
         "lead_code": lead_code,
         "full_name": lead.full_name.strip(),
-        "email": lead.email.strip().lower(),
+        "email": clean_email,
         "phone": lead.phone.strip(),
         "institution": lead.institution.strip() if lead.institution else "General",
         "course": lead.course.strip() if lead.course else "",
@@ -1712,7 +1788,8 @@ async def create_lead(lead: LeadCreate):
         "expected_graduation_period": lead.expected_graduation_period.strip() if lead.expected_graduation_period else "",
         "notes": lead.notes.strip() if lead.notes else "",
         "status": "pending",
-        "created_at": datetime.now(timezone.utc).isoformat()
+        "last_email_sent_at": now_iso,
+        "created_at": now_iso
     }
     
     saved_to_db = False
@@ -1809,20 +1886,45 @@ async def admin_resend_all_lead_emails(admin=Depends(get_current_admin)):
         if mem_l["id"] not in existing_ids:
             combined.append(mem_l)
 
+    now_utc = datetime.now(timezone.utc)
+    now_iso = now_utc.isoformat()
     sent_count = 0
     failed_count = 0
+    skipped_cooldown = 0
+
     for lead in combined:
-        if lead.get("email"):
-            success = await send_lead_confirmation_email(lead)
-            if success:
-                sent_count += 1
-            else:
-                failed_count += 1
+        if not lead.get("email"):
+            continue
+
+        # Cooldown check: prevent mass spamming if recently dispatched (300s / 5 min cooldown)
+        last_sent = lead.get("last_email_sent_at")
+        if last_sent:
+            try:
+                last_dt = datetime.fromisoformat(last_sent.replace("Z", "+00:00"))
+                elapsed = (now_utc - last_dt).total_seconds()
+                if elapsed < 300:
+                    skipped_cooldown += 1
+                    continue
+            except Exception as e:
+                logger.warning(f"Error checking cooldown for lead {lead.get('id')}: {e}")
+
+        success = await send_lead_confirmation_email(lead)
+        if success:
+            sent_count += 1
+            # Update state in DB and cache
+            try:
+                await supabase.table("leads").update({"last_email_sent_at": now_iso}).eq("id", lead["id"]).execute()
+            except Exception as e:
+                logger.warning(f"Could not update last_email_sent_at for lead {lead.get('id')}: {e}")
+            lead["last_email_sent_at"] = now_iso
+        else:
+            failed_count += 1
 
     return {
-        "message": f"Waitlist emails sent to {sent_count} existing leads.",
+        "message": f"Waitlist emails sent to {sent_count} leads ({skipped_cooldown} skipped due to active cooldown).",
         "total_leads": len(combined),
         "sent_count": sent_count,
+        "skipped_cooldown": skipped_cooldown,
         "failed_count": failed_count
     }
 

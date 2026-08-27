@@ -121,15 +121,18 @@ class KaDelAPITester:
         success, booking_response = self.run_test("Create booking", "POST", "bookings", 200, data=booking_data)
         if success and booking_response:
             self.test_booking_id = booking_response.get("id")
+            self.test_booking_secret = booking_response.get("booking_secret")
+            self.test_reservation_code = booking_response.get("reservation_code")
             print(f"   Booking ID: {self.test_booking_id}")
-            print(f"   Reservation Code: {booking_response.get('reservation_code')}")
+            print(f"   Reservation Code: {self.test_reservation_code}")
             print(f"   Total Amount: GHC {booking_response.get('total_amount', 0):.2f}")
 
             payment_data = {
                 "booking_id": self.test_booking_id,
+                "booking_secret": self.test_booking_secret,
                 "callback_url": "https://example.com/callback"
             }
-            success, _ = self.run_test("Initialize payment", "POST", "payments/initialize", [200, 500], data=payment_data)
+            success, _ = self.run_test("Initialize payment (with valid secret)", "POST", "payments/initialize", [200, 500], data=payment_data)
             print("   Payment initialization test completed")
 
 
@@ -309,6 +312,44 @@ class KaDelAPITester:
         # 3. Non-existent reservation code IDOR / BOLA scan
         self.run_test("Lookup non-existent reservation code (Expect 404)", "GET", "bookings/lookup/KAD-NONEXISTENT999", 404)
 
+        # 4. BOLA / IDOR Secret Validation Tests on Payment Initialization
+        if self.test_booking_id:
+            # Missing secret should be rejected with 403
+            self.run_test(
+                "Payment init without secret (Expect 403)",
+                "POST",
+                "payments/initialize",
+                403,
+                data={"booking_id": self.test_booking_id, "callback_url": "http://localhost:3000/payment/callback"}
+            )
+
+            # Incorrect / Tampered secret should be rejected with 403
+            self.run_test(
+                "Payment init with tampered secret (Expect 403)",
+                "POST",
+                "payments/initialize",
+                403,
+                data={
+                    "booking_id": self.test_booking_id,
+                    "booking_secret": "tampered_fake_secret_token_abcdef12345",
+                    "callback_url": "http://localhost:3000/payment/callback"
+                }
+            )
+
+        # 5. Verify Lookup Endpoint Does Not Leak Authorization Secret
+        res_code = getattr(self, "test_reservation_code", None)
+        if res_code:
+            success, lookup_data = self.run_test(
+                "Lookup booking data sanitization check",
+                "GET",
+                f"bookings/lookup/{res_code}",
+                200
+            )
+            if success and lookup_data:
+                assert "booking_secret" not in lookup_data, "VULNERABILITY: booking_secret leaked in lookup endpoint!"
+                assert "payment_reference" not in lookup_data, "VULNERABILITY: payment_reference leaked in lookup endpoint!"
+                print("   ✅ Verified: booking_secret and payment_reference safely omitted from public lookup.")
+
 def main():
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -328,11 +369,11 @@ def main():
     # 1. Run public endpoint tests
     tester.test_public_endpoints()
 
-    # 2. Run access control regression tests
-    tester.test_access_control_regressions()
-
-    # 3. Run booking flow tests
+    # 2. Run booking flow tests (creates test records)
     tester.test_booking_flow()
+
+    # 3. Run access control regression tests
+    tester.test_access_control_regressions()
     
     # 4. Run admin tests
     if tester.test_admin_login():

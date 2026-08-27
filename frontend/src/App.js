@@ -7,6 +7,7 @@ import PaymentCallback from "@/pages/PaymentCallback";
 import AdminLogin from "@/pages/AdminLogin";
 import AdminDashboard from "@/pages/AdminDashboard";
 import TrackTable from "@/pages/TrackTable";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 import LeadCapture from "@/pages/LeadCapture";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
@@ -25,8 +26,22 @@ function App() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/payment/callback" element={<PaymentCallback />} />
         <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
-        <Route path="/admin/:tab" element={<AdminDashboard />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/admin/overview" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/:tab"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
