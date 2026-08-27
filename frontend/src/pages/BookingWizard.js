@@ -190,20 +190,14 @@ export default function BookingWizard() {
           booking_id: bookingId,
           callback_url: callbackUrl,
         });
-        // Redirect to Paystack
-        window.location.href = payRes.data.authorization_url;
+        if (payRes.data?.authorization_url) {
+          window.location.href = payRes.data.authorization_url;
+        } else {
+          toast.error("Unable to generate payment link. Please contact support.");
+        }
       } catch (payErr) {
         const errMsg = payErr.response?.data?.detail || "Payment initialization failed";
-        if (errMsg.includes("Moolre not configured")) {
-          toast.error("Payment gateway not configured. Using test mode...");
-          // Use test-complete endpoint
-          const testRes = await axios.post(`${API}/payments/test-complete/${bookingId}`);
-          if (testRes.data.status === "success" || testRes.data.status === "already_confirmed") {
-            navigate(`/payment/callback?test=true&booking_id=${bookingId}&code=${testRes.data.booking.reservation_code}`);
-          }
-        } else {
-          toast.error(errMsg);
-        }
+        toast.error(errMsg);
       }
     } catch (err) {
       toast.error(err.response?.data?.detail || "Booking failed. Please try again.");

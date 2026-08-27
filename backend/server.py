@@ -16,6 +16,7 @@ import hashlib
 import json
 import random
 import string
+import secrets
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -34,6 +35,14 @@ MOOLRE_PRIVATE_KEY = os.environ.get('MOOLRE_PRIVATE_KEY', '')
 MOOLRE_ACCOUNT_NUMBER = os.environ.get('MOOLRE_ACCOUNT_NUMBER', '')
 MOOLRE_BUSINESS_EMAIL = os.environ.get('MOOLRE_BUSINESS_EMAIL', 'reservations@kadelgh.com')
 MOOLRE_BASE_URL = 'https://api.moolre.com'
+
+# Security & Admin Access Control Config
+ADMIN_EMAILS = [
+    e.strip().lower() for e in os.environ.get(
+        'ADMIN_EMAILS',
+        'admin@kadelgh.com,admin@kadel.com,reservations@kadelgh.com'
+    ).split(',') if e.strip()
+]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -100,16 +109,17 @@ class PaymentInit(BaseModel):
 # ==================== HELPERS ====================
 
 def generate_reservation_code():
-    prefix = "KAD"
-    # 5 digits gives 100,000 possible codes (vs. 1,000 with 3 digits),
-    # greatly reducing collision probability for large events.
-    numbers = ''.join(random.choices(string.digits, k=5))
-    return f"{prefix}{numbers}"
+    # Cryptographically secure random code generation (base32 unambiguous alphabet, 8 chars: ~1.1 trillion permutations)
+    prefix = "KAD-"
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    token = ''.join(secrets.choice(alphabet) for _ in range(8))
+    return f"{prefix}{token}"
 
 def generate_lead_code():
     prefix = "LEAD-"
-    numbers = ''.join(random.choices(string.digits, k=5))
-    return f"{prefix}{numbers}"
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    token = ''.join(secrets.choice(alphabet) for _ in range(6))
+    return f"{prefix}{token}"
 
 def serialize_doc(doc):
     if doc is None:
@@ -120,6 +130,31 @@ def serialize_doc(doc):
             result[key] = value.isoformat()
     return result
 
+def mask_email(email: str) -> str:
+    """Mask email address to prevent mass PII scraping in public lookups"""
+    if not email or "@" not in email:
+        return email or ""
+    parts = email.split("@", 1)
+    name, domain = parts[0], parts[1]
+    if len(name) <= 2:
+        masked_name = name[0] + "*" if name else "*"
+    else:
+        masked_name = name[0] + ("*" * (len(name) - 2)) + name[-1]
+    return f"{masked_name}@{domain}"
+
+def mask_phone(phone: str) -> str:
+    """Mask phone number to prevent mass PII scraping in public lookups"""
+    if not phone:
+        return ""
+    digits = [c for c in phone if c.isdigit()]
+    if len(digits) <= 4:
+        return phone
+    clean = "".join(digits)
+    prefix = clean[:3]
+    suffix = clean[-3:]
+    masked_middle = "*" * (len(clean) - 6) if len(clean) > 6 else "***"
+    return f"{prefix}{masked_middle}{suffix}"
+
 async def get_current_admin(request: Request):
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
@@ -129,7 +164,21 @@ async def get_current_admin(request: Request):
         res = await supabase.auth.get_user(token)
         if not res or not res.user:
             raise HTTPException(401, "Invalid token")
-        return {"email": res.user.email, "id": res.user.id}
+            
+        user_email = (res.user.email or "").strip().lower()
+        user_role = ""
+        # Strictly check app_metadata (server/admin controlled) - NEVER check client-writable user_metadata
+        if res.user.app_metadata and isinstance(res.user.app_metadata, dict):
+            user_role = res.user.app_metadata.get("role", "")
+
+        is_admin = user_role == "admin" or (ADMIN_EMAILS and user_email in ADMIN_EMAILS)
+        if not is_admin:
+            logger.warning(f"Unauthorized admin access attempt by user: {user_email}")
+            raise HTTPException(403, "Access forbidden: administrator privileges required")
+
+        return {"email": res.user.email, "id": res.user.id, "role": "admin"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"get_current_admin auth error: {e}")
         raise HTTPException(401, "Invalid token")
@@ -1076,7 +1125,14 @@ async def verify_payment(reference: str):
     if payment.get("status") == "success":
         res_book = await supabase.table("bookings").select("*").eq("id", payment["booking_id"]).execute()
         booking = res_book.data[0] if res_book.data else None
-        return {"status": "success", "booking": serialize_doc(booking)}
+        serialized = serialize_doc(booking)
+        if serialized:
+            if "email" in serialized:
+                serialized["email"] = mask_email(serialized["email"])
+            if "phone" in serialized:
+                serialized["phone"] = mask_phone(serialized["phone"])
+            serialized.pop("payment_reference", None)
+        return {"status": "success", "booking": serialized}
 
     # Payment exists but still pending — query Moolre directly for live status
     if payment and MOOLRE_USERNAME and MOOLRE_PUBLIC_KEY and MOOLRE_ACCOUNT_NUMBER:
@@ -1107,7 +1163,14 @@ async def verify_payment(reference: str):
                 if moolre_status == 1 and txstatus == 1:
                     updated = await _confirm_payment_by_reference(reference)
                     if updated:
-                        return {"status": "success", "booking": serialize_doc(updated)}
+                        serialized = serialize_doc(updated)
+                        if serialized:
+                            if "email" in serialized:
+                                serialized["email"] = mask_email(serialized["email"])
+                            if "phone" in serialized:
+                                serialized["phone"] = mask_phone(serialized["phone"])
+                            serialized.pop("payment_reference", None)
+                        return {"status": "success", "booking": serialized}
         except Exception as e:
             logger.error(f"Moolre status check error for {reference}: {e}")
 
@@ -1221,7 +1284,13 @@ async def _confirm_payment_by_reference(reference: str):
     return await _confirm_booking_internal(booking, reference)
 
 @api_router.post("/payments/test-complete/{booking_id}")
-async def test_complete_payment(booking_id: str):
+async def test_complete_payment(booking_id: str, admin=Depends(get_current_admin)):
+    # Security: Restrict test-complete endpoint strictly to non-production environments with verified admin privileges
+    allow_test = os.environ.get("ENABLE_TEST_PAYMENTS", "false").lower() in ("true", "1", "yes")
+    env_name = os.environ.get("ENVIRONMENT", "production").lower()
+    if env_name == "production" and not allow_test:
+        raise HTTPException(403, "Test payment completion is disabled in production environment")
+
     res_book = await supabase.table("bookings").select("*").eq("id", booking_id).execute()
     booking = res_book.data[0] if res_book.data else None
     if not booking:
@@ -1249,19 +1318,26 @@ async def moolre_webhook(request: Request):
     """Handle Moolre payment callback when a payment completes"""
     body = await request.body()
     
-    # Signature Verification
-    if MOOLRE_PRIVATE_KEY:
-        signature = request.headers.get("x-moolre-signature") or request.headers.get("x-signature", "")
-        computed = hmac.new(
-            MOOLRE_PRIVATE_KEY.encode('utf-8'),
-            body,
-            hashlib.sha256
-        ).hexdigest()
+    # Signature Verification - Fail-closed to prevent forged payment events
+    if not MOOLRE_PRIVATE_KEY:
+        logger.error("Moolre webhook received but MOOLRE_PRIVATE_KEY is not configured")
+        raise HTTPException(500, "Webhook processing unavailable: secret key unconfigured")
+
+    signature = request.headers.get("x-moolre-signature") or request.headers.get("x-signature", "")
+    if not signature:
+        logger.warning("Moolre webhook received without signature header")
+        raise HTTPException(401, "Missing signature")
+
+    computed = hmac.new(
+        MOOLRE_PRIVATE_KEY.encode('utf-8'),
+        body,
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(computed, signature):
+        logger.warning("Moolre webhook received invalid signature")
+        raise HTTPException(401, "Invalid signature")
         
-        if not hmac.compare_digest(computed, signature):
-            logger.warning("Moolre webhook received invalid signature")
-            raise HTTPException(401, "Invalid signature")
-            
     try:
         event = json.loads(body)
         logger.info(f"Moolre webhook received: {event}")
@@ -1289,7 +1365,16 @@ async def get_booking_by_code(reservation_code: str):
     booking = res.data[0] if res.data else None
     if not booking:
         raise HTTPException(404, "Booking not found")
-    return serialize_doc(booking)
+        
+    serialized = serialize_doc(booking)
+    # Mask PII to protect customer privacy against identifier harvesting
+    if serialized:
+        if "email" in serialized:
+            serialized["email"] = mask_email(serialized["email"])
+        if "phone" in serialized:
+            serialized["phone"] = mask_phone(serialized["phone"])
+        serialized.pop("payment_reference", None)
+    return serialized
 
 # ==================== ADMIN ROUTES ====================
 
@@ -1698,13 +1783,26 @@ async def admin_resend_single_lead_email(lead_id: str, admin=Depends(get_current
 # Include router
 app.include_router(api_router)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure secure CORS settings
+cors_origins_raw = os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000,https://kadelgh.com')
+cors_origins = [o.strip() for o in cors_origins_raw.split(',') if o.strip()]
+
+if "*" in cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_credentials=False,
+        allow_origins=["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_credentials=True,
+        allow_origins=cors_origins,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

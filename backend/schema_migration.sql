@@ -111,8 +111,18 @@ CREATE INDEX IF NOT EXISTS idx_payments_ref ON public.payments(reference);
 
 
 -- 7. Table Permissions & Row Level Security (RLS)
-GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role, anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, service_role, anon, authenticated;
+-- Principle of Least Privilege: Grant full access only to postgres and service_role
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, service_role;
+
+-- Revoke default public access from anon and authenticated roles
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+
+-- Grant selective read-only permissions to anon and authenticated for public catalogs
+GRANT SELECT ON public.products TO anon, authenticated;
+GRANT SELECT ON public.graduation_dates TO anon, authenticated;
+GRANT SELECT ON public.event_settings TO anon, authenticated;
 
 -- Enable Row Level Security (RLS) on all public tables
 ALTER TABLE public.graduation_dates ENABLE ROW LEVEL SECURITY;
@@ -134,4 +144,5 @@ CREATE POLICY "Allow public read access to graduation_dates" ON public.graduatio
 DROP POLICY IF EXISTS "Allow public read access to event_settings" ON public.event_settings;
 CREATE POLICY "Allow public read access to event_settings" ON public.event_settings
     FOR SELECT TO anon, authenticated USING (true);
+
 

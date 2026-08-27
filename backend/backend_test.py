@@ -133,28 +133,23 @@ class KaDelAPITester:
             print("   Payment initialization test completed")
 
 
-            # Test test-complete endpoint
-            success, payment_response = self.run_test(
-                "Complete payment (test mode)", 
+            # Security Test: Verify unauthenticated test-complete is rejected (Broken Access Control protection)
+            self.run_test(
+                "Unauthenticated complete payment (expect 401/403)", 
                 "POST", 
                 f"payments/test-complete/{self.test_booking_id}", 
-                200
+                [401, 403]
             )
-            if success and payment_response:
-                booking = payment_response.get("booking", {})
-                print(f"   Payment Status: {payment_response.get('status')}")
-                print(f"   Booking Status: {booking.get('status')}")
-                print(f"   Table Number: {booking.get('table_number')}")
-                print(f"   Reservation Code: {booking.get('reservation_code')}")
 
-                # Test booking lookup by reservation code
-                if booking.get('reservation_code'):
-                    self.run_test(
-                        "Lookup booking by code", 
-                        "GET", 
-                        f"bookings/lookup/{booking.get('reservation_code')}", 
-                        200
-                    )
+            # Test booking lookup by reservation code
+            res_code = booking_response.get("reservation_code")
+            if res_code:
+                self.run_test(
+                    "Lookup booking by code", 
+                    "GET", 
+                    f"bookings/lookup/{res_code}", 
+                    200
+                )
 
     def test_admin_login(self):
         """Test admin login"""
@@ -270,6 +265,45 @@ class KaDelAPITester:
         settings_data = {"event_fee_per_person": 50.0}
         self.run_test("Restore settings", "PATCH", "admin/settings", 200, data=settings_data, headers=headers)
 
+        # Test authenticated test-complete payment using admin privileges
+        if self.test_booking_id:
+            success, payment_response = self.run_test(
+                "Authorized complete payment (with admin token)",
+                "POST",
+                f"payments/test-complete/{self.test_booking_id}",
+                200,
+                headers=headers
+            )
+            if success and payment_response:
+                booking = payment_response.get("booking", {})
+                print(f"   Authorized Payment Status: {payment_response.get('status')}")
+                print(f"   Booking Status: {booking.get('status')}")
+                print(f"   Table Number: {booking.get('table_number')}")
+
+    def test_access_control_regressions(self):
+        """Security Regression Suite for OWASP A01: Broken Access Control"""
+        print("\n" + "="*60)
+        print("TESTING OWASP A01: BROKEN ACCESS CONTROL REGRESSIONS")
+        print("="*60)
+
+        # 1. Unauthenticated Admin Endpoints
+        self.run_test("Unauth Access /admin/stats (Expect 401)", "GET", "admin/stats", 401)
+        self.run_test("Unauth Access /admin/bookings (Expect 401)", "GET", "admin/bookings", 401)
+        self.run_test("Unauth Access /admin/payments (Expect 401)", "GET", "admin/payments", 401)
+        self.run_test("Unauth Access /admin/leads (Expect 401)", "GET", "admin/leads", 401)
+        self.run_test("Unauth Access /admin/settings (Expect 401)", "GET", "admin/settings", 401)
+        self.run_test("Unauth POST /admin/products (Expect 401)", "POST", "admin/products", 401, data={"name": "x", "category": "food", "price": 10, "stock": 1})
+        self.run_test("Unauth POST /admin/dates (Expect 401)", "POST", "admin/dates", 401, data={"date_label": "Test Date"})
+        self.run_test("Unauth POST /admin/tables/assign (Expect 401)", "POST", "admin/tables/assign", 401, data={"booking_id": "none", "table_number": "T1"})
+
+        # 2. Forged / Invalid Token Access
+        bad_headers = {"Authorization": "Bearer invalid_forged_jwt_token_12345"}
+        self.run_test("Forged Token /admin/stats (Expect 401)", "GET", "admin/stats", 401, headers=bad_headers)
+        self.run_test("Forged Token /admin/bookings (Expect 401)", "GET", "admin/bookings", 401, headers=bad_headers)
+
+        # 3. Non-existent reservation code IDOR / BOLA scan
+        self.run_test("Lookup non-existent reservation code (Expect 404)", "GET", "bookings/lookup/KAD-NONEXISTENT999", 404)
+
 def main():
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -286,10 +320,16 @@ def main():
         
     tester = KaDelAPITester(base_url=base_url)
 
-    # Run all tests
+    # 1. Run public endpoint tests
     tester.test_public_endpoints()
+
+    # 2. Run access control regression tests
+    tester.test_access_control_regressions()
+
+    # 3. Run booking flow tests
     tester.test_booking_flow()
     
+    # 4. Run admin tests
     if tester.test_admin_login():
         tester.test_admin_endpoints()
 
