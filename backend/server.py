@@ -175,6 +175,8 @@ class ProductCreate(BaseModel):
     price: float = Field(..., ge=0, description="Price must be non-negative")
     stock: int = Field(..., ge=0, description="Stock must be non-negative")
     vendor: str = ""
+    is_active: bool = True
+
 
 
 class TableAssign(BaseModel):
@@ -1551,7 +1553,7 @@ async def admin_add_product(data: ProductCreate, admin=Depends(get_current_admin
         "price": data.price,
         "stock": data.stock,
         "vendor": data.vendor,
-        "is_active": True
+        "is_active": data.is_active
     }
     await supabase.table("products").insert(doc).execute()
     return doc
@@ -1596,6 +1598,7 @@ async def admin_get_dates(admin=Depends(get_current_admin)):
 @api_router.post("/admin/dates")
 async def admin_create_date(data: dict, admin=Depends(get_current_admin)):
     date_label = data.get("date_label", "").strip()
+    is_active = data.get("is_active", True)
     if not date_label:
         raise HTTPException(400, "date_label cannot be empty")
         
@@ -1604,7 +1607,7 @@ async def admin_create_date(data: dict, admin=Depends(get_current_admin)):
     if exist_res.data:
         raise HTTPException(400, f"Graduation date '{date_label}' already exists")
 
-    doc = {"id": str(uuid.uuid4()), "date_label": date_label, "is_active": True}
+    doc = {"id": str(uuid.uuid4()), "date_label": date_label, "is_active": is_active}
     await supabase.table("graduation_dates").insert(doc).execute()
     return {"id": doc["id"], "message": "Date created"}
 

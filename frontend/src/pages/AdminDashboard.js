@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import {
@@ -64,9 +65,10 @@ export default function AdminDashboard() {
   // Dialogs State
   const [productDialog, setProductDialog] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
-  const [productForm, setProductForm] = useState({ name: "", category: "food", price: "", stock: "", vendor: "" });
+  const [productForm, setProductForm] = useState({ name: "", category: "food", price: "", stock: "", vendor: "", is_active: true });
   const [dateDialog, setDateDialog] = useState(false);
-  const [dateForm, setDateForm] = useState({ date_label: "" });
+  const [editDate, setEditDate] = useState(null);
+  const [dateForm, setDateForm] = useState({ date_label: "", is_active: true });
   const [tableDialog, setTableDialog] = useState(false);
   const [tableForm, setTableForm] = useState({ booking_id: "", table_number: "" });
 
@@ -247,14 +249,40 @@ export default function AdminDashboard() {
     navigate("/admin/login");
   };
 
-  // Product CRUD
+  // Product CRUD & Status Toggle
+  const toggleProductStatus = async (product) => {
+    const newStatus = !product.is_active;
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_active: newStatus } : p));
+    try {
+      await axios.patch(`${API}/admin/products/${product.id}`, { is_active: newStatus }, authHeaders());
+      toast.success(newStatus ? `"${product.name}" activated` : `"${product.name}" deactivated`);
+    } catch (err) {
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, is_active: product.is_active } : p));
+      handleAuthError(err, "Failed to update product status");
+    }
+  };
+
   const openProductDialog = (product = null) => {
     if (product) {
       setEditProduct(product);
-      setProductForm({ name: product.name, category: product.category, price: String(product.price), stock: String(product.stock), vendor: product.vendor || "" });
+      setProductForm({
+        name: product.name,
+        category: product.category,
+        price: String(product.price),
+        stock: String(product.stock),
+        vendor: product.vendor || "",
+        is_active: product.is_active !== undefined ? product.is_active : true,
+      });
     } else {
       setEditProduct(null);
-      setProductForm({ name: "", category: "food", price: "", stock: "", vendor: "" });
+      setProductForm({
+        name: "",
+        category: "food",
+        price: "",
+        stock: "",
+        vendor: "",
+        is_active: true,
+      });
     }
     setProductDialog(true);
   };
@@ -266,8 +294,6 @@ export default function AdminDashboard() {
     }
     const parsedPrice = parseFloat(productForm.price);
     const parsedStock = parseInt(productForm.stock);
-    // FIX: Validate price > 0 and stock >= 0 on the client before sending to
-    // the backend, to prevent creating unusable products that can never be purchased.
     if (isNaN(parsedPrice) || parsedPrice <= 0) {
       toast.error("Price must be greater than 0");
       return;
@@ -283,6 +309,7 @@ export default function AdminDashboard() {
         price: parsedPrice,
         stock: parsedStock,
         vendor: productForm.vendor,
+        is_active: Boolean(productForm.is_active),
       };
       if (editProduct) {
         await axios.patch(`${API}/admin/products/${editProduct.id}`, data, authHeaders());
@@ -309,17 +336,53 @@ export default function AdminDashboard() {
     }
   };
 
-  // Date CRUD
-  const saveDate = async () => {
-    if (!dateForm.date_label) { toast.error("Enter date label"); return; }
+  // Date CRUD & Status Toggle
+  const toggleDateStatus = async (dateObj) => {
+    const newStatus = !dateObj.is_active;
+    setDates(prev => prev.map(d => d.id === dateObj.id ? { ...d, is_active: newStatus } : d));
     try {
-      await axios.post(`${API}/admin/dates`, dateForm, authHeaders());
-      toast.success("Date added");
+      await axios.patch(`${API}/admin/dates/${dateObj.id}`, { is_active: newStatus }, authHeaders());
+      toast.success(newStatus ? `"${dateObj.date_label}" activated` : `"${dateObj.date_label}" deactivated`);
+    } catch (err) {
+      setDates(prev => prev.map(d => d.id === dateObj.id ? { ...d, is_active: dateObj.is_active } : d));
+      handleAuthError(err, "Failed to update date status");
+    }
+  };
+
+  const openDateDialog = (dateObj = null) => {
+    if (dateObj) {
+      setEditDate(dateObj);
+      setDateForm({
+        date_label: dateObj.date_label,
+        is_active: dateObj.is_active !== undefined ? dateObj.is_active : true,
+      });
+    } else {
+      setEditDate(null);
+      setDateForm({ date_label: "", is_active: true });
+    }
+    setDateDialog(true);
+  };
+
+  const saveDate = async () => {
+    if (!dateForm.date_label.trim()) { toast.error("Enter date label"); return; }
+    try {
+      const payload = {
+        date_label: dateForm.date_label.trim(),
+        is_active: Boolean(dateForm.is_active),
+      };
+      if (editDate) {
+        await axios.patch(`${API}/admin/dates/${editDate.id}`, payload, authHeaders());
+        toast.success("Date updated");
+      } else {
+        await axios.post(`${API}/admin/dates`, payload, authHeaders());
+        toast.success("Date added");
+      }
       setDateDialog(false);
-      setDateForm({ date_label: "" });
+      setDateForm({ date_label: "", is_active: true });
+      setEditDate(null);
       fetchAll();
     } catch (err) {
-      handleAuthError(err, "Failed to add date");
+      handleAuthError(err, "Failed to save date");
     }
   };
 
@@ -1759,7 +1822,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground animate-fade-in">Menu Offerings</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Manage dishes, drinks, and pastries available for purchase on the booking wizard.</p>
+                    <p className="text-sm text-muted-foreground mt-1">Manage dishes, drinks, and pastries. Toggle items on/off to activate or deactivate customer ordering.</p>
                   </div>
                   <Button onClick={() => openProductDialog()} className="rounded-xl h-10 px-4 font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm shrink-0" data-testid="admin-add-product-button">
                     <Plus className="mr-1 h-4 w-4" /> Add Product
@@ -1786,7 +1849,7 @@ export default function AdminDashboard() {
                                   <TableHead className="font-bold">Price (GHC)</TableHead>
                                   <TableHead className="font-bold">Stock Remaining</TableHead>
                                   <TableHead className="font-bold">Vendor Partner</TableHead>
-                                  <TableHead className="font-bold">Status</TableHead>
+                                  <TableHead className="font-bold">Status & Availability</TableHead>
                                   <TableHead className="font-bold text-right">Actions</TableHead>
                                 </TableRow>
                               </TableHeader>
@@ -1802,9 +1865,24 @@ export default function AdminDashboard() {
                                     </TableCell>
                                     <TableCell className="text-sm font-medium">{p.vendor || "In-House"}</TableCell>
                                     <TableCell>
-                                      <Badge variant={p.is_active ? "default" : "secondary"} className="text-xs">
-                                        {p.is_active ? "Active" : "Inactive"}
-                                      </Badge>
+                                      <div className="flex items-center gap-2.5">
+                                        <Switch
+                                          checked={p.is_active}
+                                          onCheckedChange={() => toggleProductStatus(p)}
+                                          data-testid={`product-toggle-${p.id}`}
+                                        />
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-xs font-bold transition-colors py-0.5 px-2.5 rounded-full border",
+                                            p.is_active
+                                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                              : "bg-muted text-muted-foreground border-border/80"
+                                          )}
+                                        >
+                                          {p.is_active ? "Active" : "Inactive"}
+                                        </Badge>
+                                      </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                       <div className="flex gap-1 justify-end">
@@ -1829,9 +1907,26 @@ export default function AdminDashboard() {
                                   </div>
                                   <div className="flex flex-col items-end shrink-0">
                                     <span className="text-sm font-extrabold text-primary">GHC {p.price?.toFixed(2)}</span>
-                                    <div className="flex gap-1 mt-1.5">
+                                    <div className="flex items-center gap-2 mt-1.5">
                                       <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="text-[10px] font-bold">{p.stock} left</Badge>
-                                      <Badge variant={p.is_active ? "default" : "secondary"} className="text-[10px]">{p.is_active ? "Active" : "Inactive"}</Badge>
+                                      <div className="flex items-center gap-1.5">
+                                        <Switch
+                                          checked={p.is_active}
+                                          onCheckedChange={() => toggleProductStatus(p)}
+                                          className="scale-75 origin-right"
+                                        />
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-[10px] font-bold py-0.5 px-2 rounded-full border",
+                                            p.is_active
+                                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                              : "bg-muted text-muted-foreground border-border/80"
+                                          )}
+                                        >
+                                          {p.is_active ? "Active" : "Inactive"}
+                                        </Badge>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -1869,9 +1964,9 @@ export default function AdminDashboard() {
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground animate-fade-in">Graduation Calendars</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Configure valid dates graduates can pick when initiating dinner reservations.</p>
+                    <p className="text-sm text-muted-foreground mt-1">Configure valid dates graduates can pick when initiating dinner reservations. Toggle dates on/off to activate or deactivate booking availability.</p>
                   </div>
-                  <Button onClick={() => setDateDialog(true)} className="rounded-xl h-10 px-4 font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm shrink-0">
+                  <Button onClick={() => openDateDialog()} className="rounded-xl h-10 px-4 font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm shrink-0">
                     <Plus className="mr-1 h-4 w-4" /> Add Date
                   </Button>
                 </div>
@@ -1884,7 +1979,7 @@ export default function AdminDashboard() {
                         <TableHeader className="bg-secondary/15">
                           <TableRow>
                             <TableHead className="font-bold">Graduation Event Date</TableHead>
-                            <TableHead className="font-bold">Status</TableHead>
+                            <TableHead className="font-bold">Status & Availability</TableHead>
                             <TableHead className="font-bold text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1893,14 +1988,34 @@ export default function AdminDashboard() {
                             <TableRow key={d.id} className="hover:bg-secondary/15">
                               <TableCell className="font-semibold text-foreground">{d.date_label}</TableCell>
                               <TableCell>
-                                <Badge variant={d.is_active ? "default" : "secondary"} className="text-xs">
-                                  {d.is_active ? "Active" : "Inactive"}
-                                </Badge>
+                                <div className="flex items-center gap-2.5">
+                                  <Switch
+                                    checked={d.is_active}
+                                    onCheckedChange={() => toggleDateStatus(d)}
+                                    data-testid={`date-toggle-${d.id}`}
+                                  />
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-xs font-bold transition-colors py-0.5 px-2.5 rounded-full border",
+                                      d.is_active
+                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                        : "bg-muted text-muted-foreground border-border/80"
+                                    )}
+                                  >
+                                    {d.is_active ? "Active" : "Inactive"}
+                                  </Badge>
+                                </div>
                               </TableCell>
                               <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" onClick={() => deleteDate(d.id)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                <div className="flex gap-1 justify-end">
+                                  <Button variant="ghost" size="sm" onClick={() => openDateDialog(d)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground">
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={() => deleteDate(d.id)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
@@ -1917,13 +2032,35 @@ export default function AdminDashboard() {
                     <div className="block md:hidden p-4 space-y-3">
                       {dates.map(d => (
                         <Card key={d.id} className="p-3.5 flex items-center justify-between border-border/80 shadow-sm bg-card">
-                          <div>
+                          <div className="space-y-1.5">
                             <h4 className="font-bold text-sm text-foreground">{d.date_label}</h4>
-                            <Badge variant={d.is_active ? "default" : "secondary"} className="text-[10px] mt-1.5">{d.is_active ? "Active" : "Inactive"}</Badge>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={d.is_active}
+                                onCheckedChange={() => toggleDateStatus(d)}
+                                className="scale-75 origin-left"
+                              />
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] font-bold py-0.5 px-2 rounded-full border",
+                                  d.is_active
+                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                    : "bg-muted text-muted-foreground border-border/80"
+                                )}
+                              >
+                                {d.is_active ? "Active" : "Inactive"}
+                              </Badge>
+                            </div>
                           </div>
-                          <Button variant="outline" size="sm" onClick={() => deleteDate(d.id)} className="h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 border-destructive/20 hover:bg-destructive/5 text-destructive">
-                            <Trash2 className="h-3.5 w-3.5" /> Delete
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button variant="outline" size="sm" onClick={() => openDateDialog(d)} className="h-8 px-2.5 rounded-lg text-xs font-bold border-border/80 hover:bg-secondary text-muted-foreground hover:text-foreground">
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => deleteDate(d.id)} className="h-8 px-2.5 rounded-lg text-xs font-bold border-destructive/20 hover:bg-destructive/5 text-destructive">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </Card>
                       ))}
                       {dates.length === 0 && (
@@ -2116,6 +2253,17 @@ export default function AdminDashboard() {
                 className="h-10 rounded-xl border-border/80 text-sm"
               />
             </div>
+
+            <div className="flex items-center justify-between p-3.5 bg-secondary/30 rounded-2xl border border-border/60">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-bold text-foreground">Active Status</Label>
+                <p className="text-[11px] text-muted-foreground">Make item visible & orderable in the wizard</p>
+              </div>
+              <Switch
+                checked={productForm.is_active}
+                onCheckedChange={v => setProductForm(f => ({ ...f, is_active: v }))}
+              />
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button variant="secondary" onClick={() => setProductDialog(false)} className="h-10 rounded-xl text-xs font-bold">
@@ -2132,24 +2280,39 @@ export default function AdminDashboard() {
       <Dialog open={dateDialog} onOpenChange={setDateDialog}>
         <DialogContent className="max-w-[92vw] sm:max-w-[425px] rounded-3xl border shadow-2xl p-6 bg-card">
           <DialogHeader className="pb-3 border-b">
-            <DialogTitle className="font-display text-lg font-bold text-foreground">Add Graduation Event Date</DialogTitle>
+            <DialogTitle className="font-display text-lg font-bold text-foreground">
+              {editDate ? "Edit Graduation Event Date" : "Add Graduation Event Date"}
+            </DialogTitle>
           </DialogHeader>
-          <div className="py-4 space-y-1.5">
-            <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label *</Label>
-            <Input
-              value={dateForm.date_label}
-              onChange={e => setDateForm({ date_label: e.target.value })}
-              placeholder="e.g. December 20, 2026"
-              className="h-10 rounded-xl border-border/80 text-sm"
-            />
-            <p className="text-[10px] text-muted-foreground">This label will be shown in the graduation selection menu.</p>
+          <div className="space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Date Label *</Label>
+              <Input
+                value={dateForm.date_label}
+                onChange={e => setDateForm(f => ({ ...f, date_label: e.target.value }))}
+                placeholder="e.g. December 20, 2026"
+                className="h-10 rounded-xl border-border/80 text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">This label will be shown in the graduation selection menu.</p>
+            </div>
+
+            <div className="flex items-center justify-between p-3.5 bg-secondary/30 rounded-2xl border border-border/60">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-bold text-foreground">Active Status</Label>
+                <p className="text-[11px] text-muted-foreground">Available for graduates to select</p>
+              </div>
+              <Switch
+                checked={dateForm.is_active}
+                onCheckedChange={v => setDateForm(f => ({ ...f, is_active: v }))}
+              />
+            </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
             <Button variant="secondary" onClick={() => setDateDialog(false)} className="h-10 rounded-xl text-xs font-bold">
               Cancel
             </Button>
             <Button onClick={saveDate} className="h-10 rounded-xl text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm">
-              Add Date
+              {editDate ? "Save Changes" : "Add Date"}
             </Button>
           </DialogFooter>
         </DialogContent>
