@@ -181,13 +181,14 @@ export default function BookingWizard() {
         wants_food: wantsFood,
         selections: wantsFood ? selectionsList : [],
       });
-      const { id: bookingId } = bookingRes.data;
+      const { id: bookingId, booking_secret: bookingSecret } = bookingRes.data;
 
       // Initialize payment
       const callbackUrl = `${window.location.origin}/payment/callback`;
       try {
         const payRes = await axios.post(`${API}/payments/initialize`, {
           booking_id: bookingId,
+          booking_secret: bookingSecret,
           callback_url: callbackUrl,
         });
         if (payRes.data?.authorization_url) {

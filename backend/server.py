@@ -58,11 +58,21 @@ def check_rate_limit(key: str, max_requests: int = 30, window_seconds: int = 60)
     _rate_limit_records[key].append(now)
     return True
 
+TRUSTED_PROXIES = {
+    ip.strip()
+    for ip in os.environ.get('TRUSTED_PROXIES', '127.0.0.1,::1,localhost').split(',')
+    if ip.strip()
+}
+
 def get_client_ip(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "127.0.0.1"
+    peer_ip = request.client.host if request.client else "127.0.0.1"
+    # Only trust X-Forwarded-For if peer host is explicitly a recognized reverse proxy
+    if peer_ip in TRUSTED_PROXIES:
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            # Rightmost untrusted proxy position / client IP
+            return forwarded.split(",")[0].strip()
+    return peer_ip
 
 def sanitize_callback_url(client_url: Optional[str]) -> str:
     """Validate and sanitize payment callback URL to prevent open redirect and parameter tampering"""
@@ -150,6 +160,7 @@ class TableAssign(BaseModel):
 class PaymentInit(BaseModel):
     booking_id: str
     callback_url: str
+    booking_secret: Optional[str] = None
 
 # ==================== HELPERS ====================
 
@@ -1016,6 +1027,7 @@ async def create_booking(booking: BookingCreate):
         raise HTTPException(500, "Could not generate a unique reservation code. Please try again.")
 
     booking_id = str(uuid.uuid4())
+    booking_secret = secrets.token_urlsafe(32)
     booking_doc = {
         "id": booking_id,
         "graduate_name": booking.graduate_name,
@@ -1031,6 +1043,7 @@ async def create_booking(booking: BookingCreate):
         "total_amount": total,
         "status": "pending",
         "reservation_code": reservation_code,
+        "booking_secret": booking_secret,
         "table_number": None,
         "payment_reference": None,
         "created_at": datetime.now(timezone.utc).isoformat()
@@ -1042,6 +1055,7 @@ async def create_booking(booking: BookingCreate):
         "base_cost": base_cost,
         "food_cost": food_cost,
         "reservation_code": reservation_code,
+        "booking_secret": booking_secret,
         "event_fee_per_person": event_fee
     }
 
@@ -1052,6 +1066,11 @@ async def initialize_payment(data: PaymentInit):
     booking = res.data[0] if res.data else None
     if not booking:
         raise HTTPException(404, "Booking not found")
+
+    # Guard against BOLA/IDOR: Validate secret token if configured on booking
+    expected_secret = booking.get("booking_secret")
+    if expected_secret and expected_secret != data.booking_secret:
+        raise HTTPException(403, "Invalid or missing booking authorization secret")
 
     if booking["status"] == "confirmed":
         raise HTTPException(400, "Booking is already confirmed")
@@ -1827,9 +1846,34 @@ async def admin_resend_single_lead_email(lead_id: str, admin=Depends(get_current
     if not lead_doc:
         raise HTTPException(404, "Lead not found")
 
+    # Cooldown check: prevent rapid repeated outbound email dispatch (300s / 5 min cooldown)
+    last_sent = lead_doc.get("last_email_sent_at")
+    if last_sent:
+        try:
+            last_dt = datetime.fromisoformat(last_sent.replace("Z", "+00:00"))
+            elapsed = (datetime.now(timezone.utc) - last_dt).total_seconds()
+            if elapsed < 300:
+                remaining = int(300 - elapsed)
+                raise HTTPException(429, f"Please wait {remaining} seconds before resending an email to this lead.")
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Could not parse last_email_sent_at timestamp: {e}")
+
     success = await send_lead_confirmation_email(lead_doc)
     if not success:
         raise HTTPException(500, "Failed to send lead email. Please check server email logs.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    # Update state in DB and in-memory cache
+    try:
+        await supabase.table("leads").update({"last_email_sent_at": now_iso}).eq("id", lead_id).execute()
+    except Exception as e:
+        logger.warning(f"Could not update last_email_sent_at in Supabase: {e}")
+
+    for mem_l in in_memory_leads:
+        if mem_l["id"] == lead_id:
+            mem_l["last_email_sent_at"] = now_iso
 
     return {"message": f"Confirmation email resent to {lead_doc.get('email')}"}
 

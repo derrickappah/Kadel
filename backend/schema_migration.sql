@@ -37,9 +37,13 @@ CREATE TABLE IF NOT EXISTS public.leads (
     expected_graduation_period TEXT DEFAULT 'Pending Announcement',
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'contacted', 'converted', 'archived'
     notes TEXT DEFAULT '',
+    last_email_sent_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.leads 
+ADD COLUMN IF NOT EXISTS last_email_sent_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_leads_code ON public.leads(lead_code);
 CREATE INDEX IF NOT EXISTS idx_leads_status ON public.leads(status);
@@ -84,9 +88,13 @@ CREATE TABLE IF NOT EXISTS public.bookings (
     total_amount NUMERIC(10,2) NOT NULL DEFAULT 0.00,
     status TEXT NOT NULL DEFAULT 'pending', -- 'pending', 'confirmed', 'failed', 'cancelled'
     table_number TEXT,
+    booking_secret TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.bookings 
+ADD COLUMN IF NOT EXISTS booking_secret TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_bookings_code ON public.bookings(reservation_code);
 CREATE INDEX IF NOT EXISTS idx_bookings_date ON public.bookings(graduation_date);
