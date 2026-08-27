@@ -38,11 +38,56 @@ MOOLRE_BASE_URL = 'https://api.moolre.com'
 
 # Security & Admin Access Control Config
 ADMIN_EMAILS = [
-    e.strip().lower() for e in os.environ.get(
-        'ADMIN_EMAILS',
-        'admin@kadelgh.com,admin@kadel.com,reservations@kadelgh.com'
-    ).split(',') if e.strip()
+    e.strip().lower() for e in os.environ.get('ADMIN_EMAILS', '').split(',') if e.strip()
 ]
+
+# Simple in-memory sliding window rate limiter for public sensitive endpoints
+import time
+from collections import defaultdict
+
+_rate_limit_records = defaultdict(list)
+
+def check_rate_limit(key: str, max_requests: int = 30, window_seconds: int = 60) -> bool:
+    """Returns True if within rate limit, False if rate limit exceeded"""
+    now = time.time()
+    cutoff = now - window_seconds
+    # Clean old requests
+    _rate_limit_records[key] = [t for t in _rate_limit_records[key] if t > cutoff]
+    if len(_rate_limit_records[key]) >= max_requests:
+        return False
+    _rate_limit_records[key].append(now)
+    return True
+
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+def sanitize_callback_url(client_url: Optional[str]) -> str:
+    """Validate and sanitize payment callback URL to prevent open redirect and parameter tampering"""
+    default_frontend = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
+    default_callback = f"{default_frontend}/payment/callback"
+    if not client_url or not isinstance(client_url, str):
+        return default_callback
+    
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(client_url.strip())
+        if not parsed.scheme or not parsed.netloc:
+            return default_callback
+            
+        allowed_hosts = {"localhost:3000", "127.0.0.1:3000", "kadelgh.com", "www.kadelgh.com"}
+        frontend_host = urlparse(default_frontend).netloc
+        if frontend_host:
+            allowed_hosts.add(frontend_host)
+            
+        if parsed.netloc.lower() in allowed_hosts:
+            # Safe domain match
+            return client_url.strip()
+    except Exception:
+        pass
+    return default_callback
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -1043,7 +1088,7 @@ async def initialize_payment(data: PaymentInit):
             
             booking = await _confirm_booking_internal(booking, reference)
             
-        redirect_url = data.callback_url or f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/payment/callback"
+        redirect_url = sanitize_callback_url(data.callback_url)
         return {
             "authorization_url": f"{redirect_url}?test=true&booking_id={data.booking_id}&code={booking.get('reservation_code', '')}",
             "reference": booking.get("payment_reference", "FREE")
@@ -1053,7 +1098,7 @@ async def initialize_payment(data: PaymentInit):
         raise HTTPException(500, "Moolre not configured. Please add Moolre credentials to backend .env file.")
 
     external_ref = f"KDL_{uuid.uuid4().hex[:16]}"
-    redirect_url = data.callback_url or f"{os.environ.get('FRONTEND_URL', 'http://localhost:3000')}/payment/callback"
+    redirect_url = sanitize_callback_url(data.callback_url)
     callback_url = f"{os.environ.get('BACKEND_URL', 'http://127.0.0.1:8000')}/api/moolre/webhook"
 
     async with httpx.AsyncClient() as http_client:
@@ -1358,7 +1403,11 @@ async def moolre_webhook(request: Request):
 
 
 @api_router.get("/bookings/lookup/{reservation_code}")
-async def get_booking_by_code(reservation_code: str):
+async def get_booking_by_code(reservation_code: str, request: Request):
+    ip = get_client_ip(request)
+    if not check_rate_limit(f"lookup:{ip}", max_requests=30, window_seconds=60):
+        raise HTTPException(429, "Too many lookup requests. Please try again later.")
+
     code = reservation_code.upper().strip()
     res = await supabase.table("bookings").select("*").eq("reservation_code", code).execute()
 
@@ -1379,7 +1428,11 @@ async def get_booking_by_code(reservation_code: str):
 # ==================== ADMIN ROUTES ====================
 
 @api_router.post("/admin/login")
-async def admin_login(data: AdminLoginReq):
+async def admin_login(data: AdminLoginReq, request: Request):
+    ip = get_client_ip(request)
+    if not check_rate_limit(f"login:{ip}", max_requests=10, window_seconds=60):
+        raise HTTPException(429, "Too many login attempts. Please try again in a minute.")
+
     try:
         res = await supabase.auth.sign_in_with_password({
             "email": data.email,

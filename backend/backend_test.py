@@ -293,13 +293,18 @@ class KaDelAPITester:
         self.run_test("Unauth Access /admin/leads (Expect 401)", "GET", "admin/leads", 401)
         self.run_test("Unauth Access /admin/settings (Expect 401)", "GET", "admin/settings", 401)
         self.run_test("Unauth POST /admin/products (Expect 401)", "POST", "admin/products", 401, data={"name": "x", "category": "food", "price": 10, "stock": 1})
+        self.run_test("Unauth DELETE /admin/products/test-id (Expect 401)", "DELETE", "admin/products/test-id", 401)
         self.run_test("Unauth POST /admin/dates (Expect 401)", "POST", "admin/dates", 401, data={"date_label": "Test Date"})
+        self.run_test("Unauth DELETE /admin/dates/test-id (Expect 401)", "DELETE", "admin/dates/test-id", 401)
         self.run_test("Unauth POST /admin/tables/assign (Expect 401)", "POST", "admin/tables/assign", 401, data={"booking_id": "none", "table_number": "T1"})
+        self.run_test("Unauth POST /admin/leads/resend-all (Expect 401)", "POST", "admin/leads/resend-all", 401)
+        self.run_test("Unauth DELETE /admin/leads/test-id (Expect 401)", "DELETE", "admin/leads/test-id", 401)
 
         # 2. Forged / Invalid Token Access
         bad_headers = {"Authorization": "Bearer invalid_forged_jwt_token_12345"}
         self.run_test("Forged Token /admin/stats (Expect 401)", "GET", "admin/stats", 401, headers=bad_headers)
         self.run_test("Forged Token /admin/bookings (Expect 401)", "GET", "admin/bookings", 401, headers=bad_headers)
+        self.run_test("Forged Token /admin/leads (Expect 401)", "GET", "admin/leads", 401, headers=bad_headers)
 
         # 3. Non-existent reservation code IDOR / BOLA scan
         self.run_test("Lookup non-existent reservation code (Expect 404)", "GET", "bookings/lookup/KAD-NONEXISTENT999", 404)
