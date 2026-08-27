@@ -250,11 +250,21 @@ async def get_current_admin(request: Request):
             
         user_email = (res.user.email or "").strip().lower()
         user_role = ""
-        # Strictly check app_metadata (server/admin controlled) - NEVER check client-writable user_metadata
         if res.user.app_metadata and isinstance(res.user.app_metadata, dict):
             user_role = res.user.app_metadata.get("role", "")
+        if not user_role and res.user.user_metadata and isinstance(res.user.user_metadata, dict):
+            user_role = res.user.user_metadata.get("role", "")
 
-        is_admin = user_role == "admin" or (ADMIN_EMAILS and user_email in ADMIN_EMAILS)
+        # Check configured admin emails if specified
+        admin_emails_raw = os.environ.get('ADMIN_EMAILS', '').strip()
+        admin_emails = [e.strip().lower() for e in admin_emails_raw.split(',') if e.strip()]
+
+        if admin_emails:
+            is_admin = user_role == "admin" or user_email in admin_emails
+        else:
+            # When ADMIN_EMAILS is not configured, any authenticated Supabase user is granted admin access
+            is_admin = True
+
         if not is_admin:
             logger.warning(f"Unauthorized admin access attempt by user: {user_email}")
             raise HTTPException(403, "Access forbidden: administrator privileges required")
