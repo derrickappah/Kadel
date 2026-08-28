@@ -1585,8 +1585,8 @@ export default function AdminDashboard() {
                                                         <span className="text-muted-foreground text-[10px] font-bold">x{sel.quantity}</span>
                                                       </div>
                                                       <div className="text-right shrink-0">
-                                                        <span className="font-bold text-foreground">GHC {(sel.quantity * sel.unit_price).toFixed(2)}</span>
-                                                        <span className="block text-[9px] text-muted-foreground">GHC {sel.unit_price.toFixed(2)} ea</span>
+                                                        <span className="font-bold text-foreground">GHC {Number(sel.quantity * sel.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                        <span className="block text-[9px] text-muted-foreground">GHC {Number(sel.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ea</span>
                                                       </div>
                                                     </div>
                                                   );
@@ -2551,7 +2551,7 @@ export default function AdminDashboard() {
                                               {p.category}
                                             </Badge>
                                           </TableCell>
-                                          <TableCell className="font-semibold text-primary">GHC {p.price?.toFixed(2)}</TableCell>
+                                          <TableCell className="font-semibold text-primary">GHC {Number(p.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                           <TableCell>
                                             <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="font-bold text-xs">
                                               {p.stock}
@@ -2603,7 +2603,7 @@ export default function AdminDashboard() {
                                           </div>
                                         </div>
                                         <div className="flex flex-col items-end shrink-0">
-                                          <span className="text-sm font-extrabold text-primary">GHC {p.price?.toFixed(2)}</span>
+                                          <span className="text-sm font-extrabold text-primary">GHC {Number(p.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                           <div className="flex items-center gap-2 mt-1.5">
                                             <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="text-[10px] font-bold">{p.stock} left</Badge>
                                             <div className="flex items-center gap-1.5">
