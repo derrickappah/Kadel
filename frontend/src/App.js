@@ -35,7 +35,39 @@ function App() {
           }
         />
         <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/admin/overview" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/seller/listings"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/admin/products" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/listings"
+          element={
+            <ProtectedRoute>
+              <Navigate to="/admin/products" replace />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/:tab"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/:tab"
           element={
             <ProtectedRoute>
               <AdminDashboard />
