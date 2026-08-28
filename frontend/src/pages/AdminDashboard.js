@@ -33,7 +33,7 @@ const NAV_ITEMS = [
   { id: "bookings", label: "Bookings", icon: Receipt },
   { id: "payments", label: "Payment Records", icon: CreditCard },
   { id: "leads", label: "Priority Waitlist", icon: UserCheck },
-  { id: "products", label: "Listings & Products", icon: Package },
+  { id: "products", label: "Products", icon: Package },
   { id: "dates", label: "Dates", icon: Calendar },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -41,12 +41,10 @@ const NAV_ITEMS = [
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { tab } = useParams();
-  const validTabs = useMemo(() => ["overview", "analytics", "bookings", "payments", "leads", "products", "listings", "seller", "dates", "settings"], []);
+  const validTabs = useMemo(() => ["overview", "analytics", "bookings", "payments", "leads", "products", "dates", "settings"], []);
   const activeTab = useMemo(() => {
     if (tab && validTabs.includes(tab.toLowerCase())) {
-      const t = tab.toLowerCase();
-      if (t === "listings" || t === "seller") return "products";
-      return t;
+      return tab.toLowerCase();
     }
     return "overview";
   }, [tab, validTabs]);
@@ -65,7 +63,6 @@ export default function AdminDashboard() {
   const [leads, setLeads] = useState([]);
   const [leadSearch, setLeadSearch] = useState("");
   const [leadStatusFilter, setLeadStatusFilter] = useState("all");
-  const [productSearch, setProductSearch] = useState("");
 
   // Dialogs State
   const [productDialog, setProductDialog] = useState(false);
@@ -1585,8 +1582,8 @@ export default function AdminDashboard() {
                                                         <span className="text-muted-foreground text-[10px] font-bold">x{sel.quantity}</span>
                                                       </div>
                                                       <div className="text-right shrink-0">
-                                                        <span className="font-bold text-foreground">GHC {Number(sel.quantity * sel.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                                        <span className="block text-[9px] text-muted-foreground">GHC {Number(sel.unit_price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ea</span>
+                                                        <span className="font-bold text-foreground">GHC {(sel.quantity * sel.unit_price).toFixed(2)}</span>
+                                                        <span className="block text-[9px] text-muted-foreground">GHC {sel.unit_price.toFixed(2)} ea</span>
                                                       </div>
                                                     </div>
                                                   );
@@ -2402,7 +2399,7 @@ export default function AdminDashboard() {
               </motion.div>
             )}
 
-            {/* PRODUCTS & SELLER LISTINGS */}
+            {/* PRODUCTS */}
             {activeTab === "products" && (
               <motion.div
                 initial={{ opacity: 0, y: 15 }}
@@ -2411,240 +2408,135 @@ export default function AdminDashboard() {
                 transition={{ duration: 0.2 }}
                 className="space-y-6"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <div>
-                    <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground animate-fade-in">Listings & Offerings</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Manage catalog listings, dishes, drinks, and pastries. Toggle items on/off to activate or deactivate customer ordering.</p>
+                    <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground animate-fade-in">Menu Offerings</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Manage dishes, drinks, and pastries. Toggle items on/off to activate or deactivate customer ordering.</p>
                   </div>
                   <Button onClick={() => openProductDialog()} className="rounded-xl h-10 px-4 font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm shrink-0" data-testid="admin-add-product-button">
                     <Plus className="mr-1 h-4 w-4" /> Add Product
                   </Button>
                 </div>
 
-                {/* Search Bar Toolbar */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card/60 p-3 sm:p-4 rounded-2xl border border-border/70 backdrop-blur-xs">
-                  <div className="relative flex-1 max-w-lg">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search listings by title, vendor, category, price..."
-                      value={productSearch}
-                      onChange={e => setProductSearch(e.target.value)}
-                      className="pl-10 pr-9 h-11 rounded-xl border-border/85 bg-card focus-visible:ring-primary shadow-xs text-sm"
-                      data-testid="admin-product-search-input"
-                    />
-                    {productSearch && (
-                      <button
-                        onClick={() => setProductSearch("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-1"
-                        aria-label="Clear search"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                  {productSearch && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="font-bold text-xs">
-                        {products.filter(p => {
-                          const q = productSearch.toLowerCase().trim();
-                          return !q || (p.name && p.name.toLowerCase().includes(q)) || (p.vendor && p.vendor.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q)) || (p.price && p.price.toString().includes(q));
-                        }).length} matches
-                      </Badge>
-                      <Button variant="ghost" size="sm" onClick={() => setProductSearch("")} className="h-8 px-2.5 text-xs text-muted-foreground hover:text-foreground">
-                        Reset
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                <Tabs defaultValue="all">
-                  <TabsList className="bg-secondary/45 p-1 rounded-xl h-11 max-w-md flex border border-border/60">
-                    <TabsTrigger value="all" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">
-                      All ({products.filter(p => {
-                        if (!productSearch.trim()) return true;
-                        const q = productSearch.toLowerCase().trim();
-                        return (p.name && p.name.toLowerCase().includes(q)) || (p.vendor && p.vendor.toLowerCase().includes(q)) || (p.category && p.category.toLowerCase().includes(q)) || (p.price && p.price.toString().includes(q));
-                      }).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="food" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">
-                      Food ({products.filter(p => {
-                        if (p.category !== "food") return false;
-                        if (!productSearch.trim()) return true;
-                        const q = productSearch.toLowerCase().trim();
-                        return (p.name && p.name.toLowerCase().includes(q)) || (p.vendor && p.vendor.toLowerCase().includes(q)) || (p.price && p.price.toString().includes(q));
-                      }).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="drink" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">
-                      Drinks ({products.filter(p => {
-                        if (p.category !== "drink") return false;
-                        if (!productSearch.trim()) return true;
-                        const q = productSearch.toLowerCase().trim();
-                        return (p.name && p.name.toLowerCase().includes(q)) || (p.vendor && p.vendor.toLowerCase().includes(q)) || (p.price && p.price.toString().includes(q));
-                      }).length})
-                    </TabsTrigger>
-                    <TabsTrigger value="pastry" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">
-                      Pastries ({products.filter(p => {
-                        if (p.category !== "pastry") return false;
-                        if (!productSearch.trim()) return true;
-                        const q = productSearch.toLowerCase().trim();
-                        return (p.name && p.name.toLowerCase().includes(q)) || (p.vendor && p.vendor.toLowerCase().includes(q)) || (p.price && p.price.toString().includes(q));
-                      }).length})
-                    </TabsTrigger>
+                <Tabs defaultValue="food">
+                  <TabsList className="bg-secondary/45 p-1 rounded-xl h-11 max-w-sm flex border border-border/60">
+                    <TabsTrigger value="food" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">Food ({products.filter(p => p.category === "food").length})</TabsTrigger>
+                    <TabsTrigger value="drink" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">Drinks ({products.filter(p => p.category === "drink").length})</TabsTrigger>
+                    <TabsTrigger value="pastry" className="flex-1 rounded-lg text-xs sm:text-sm font-semibold py-2">Pastries ({products.filter(p => p.category === "pastry").length})</TabsTrigger>
                   </TabsList>
                   
-                  {["all", "food", "drink", "pastry"].map(cat => {
-                    const filteredList = products.filter(p => {
-                      if (cat !== "all" && p.category !== cat) return false;
-                      if (!productSearch.trim()) return true;
-                      const q = productSearch.toLowerCase().trim();
-                      return (
-                        (p.name && p.name.toLowerCase().includes(q)) ||
-                        (p.vendor && p.vendor.toLowerCase().includes(q)) ||
-                        (p.category && p.category.toLowerCase().includes(q)) ||
-                        (p.price && p.price.toString().includes(q))
-                      );
-                    });
+                  {["food", "drink", "pastry"].map(cat => (
+                    <TabsContent key={cat} value={cat} className="mt-4 animate-in fade-in-40 duration-200">
+                      <Card className="border-border/80 shadow-md bg-card overflow-hidden rounded-2xl">
+                        <CardContent className="p-0">
+                          {/* Desktop View */}
+                          <div className="hidden md:block">
+                            <Table>
+                              <TableHeader className="bg-secondary/15">
+                                <TableRow>
+                                  <TableHead className="font-bold">Item Name</TableHead>
+                                  <TableHead className="font-bold">Price (GHC)</TableHead>
+                                  <TableHead className="font-bold">Stock Remaining</TableHead>
+                                  <TableHead className="font-bold">Vendor Partner</TableHead>
+                                  <TableHead className="font-bold">Status & Availability</TableHead>
+                                  <TableHead className="font-bold text-right">Actions</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {products.filter(p => p.category === cat).map(p => (
+                                  <TableRow key={p.id} className="hover:bg-secondary/15">
+                                    <TableCell className="font-bold text-foreground">{p.name}</TableCell>
+                                    <TableCell className="font-semibold text-primary">GHC {p.price?.toFixed(2)}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="font-bold text-xs">
+                                        {p.stock}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm font-medium">{p.vendor || "In-House"}</TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-2.5">
+                                        <Switch
+                                          checked={p.is_active}
+                                          onCheckedChange={() => toggleProductStatus(p)}
+                                          data-testid={`product-toggle-${p.id}`}
+                                        />
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-xs font-bold transition-colors py-0.5 px-2.5 rounded-full border",
+                                            p.is_active
+                                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                              : "bg-muted text-muted-foreground border-border/80"
+                                          )}
+                                        >
+                                          {p.is_active ? "Active" : "Inactive"}
+                                        </Badge>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <div className="flex gap-1 justify-end">
+                                        <Button variant="ghost" size="sm" onClick={() => openProductDialog(p)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="sm" onClick={() => deleteProduct(p.id)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                ))}
+                              </TableBody>
+                            </Table>
+                          </div>
 
-                    return (
-                      <TabsContent key={cat} value={cat} className="mt-4 animate-in fade-in-40 duration-200">
-                        <Card className="border-border/80 shadow-md bg-card overflow-hidden rounded-2xl">
-                          <CardContent className="p-0">
-                            {filteredList.length === 0 ? (
-                              <div className="text-center py-14 px-4 space-y-3">
-                                <Package className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                                <p className="font-semibold text-foreground text-sm sm:text-base">
-                                  {productSearch ? `No listings found matching "${productSearch}"` : `No ${cat === 'all' ? 'listings' : cat} found`}
-                                </p>
-                                {productSearch && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setProductSearch("")}
-                                    className="rounded-xl text-xs font-bold border-border/80 hover:bg-secondary"
-                                  >
-                                    Clear Search
+                          {/* Mobile View */}
+                          <div className="block md:hidden p-4 space-y-3">
+                            {products.filter(p => p.category === cat).map(p => (
+                              <Card key={p.id} className="p-4 space-y-3.5 border-border/80 shadow-md bg-card">
+                                <div className="flex justify-between items-start gap-3">
+                                  <div>
+                                    <h4 className="font-bold text-sm sm:text-base text-foreground">{p.name}</h4>
+                                    {p.vendor && <p className="text-xs text-muted-foreground mt-0.5">Vendor: {p.vendor}</p>}
+                                  </div>
+                                  <div className="flex flex-col items-end shrink-0">
+                                    <span className="text-sm font-extrabold text-primary">GHC {p.price?.toFixed(2)}</span>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                      <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="text-[10px] font-bold">{p.stock} left</Badge>
+                                      <div className="flex items-center gap-1.5">
+                                        <Switch
+                                          checked={p.is_active}
+                                          onCheckedChange={() => toggleProductStatus(p)}
+                                          className="scale-75 origin-right"
+                                        />
+                                        <Badge
+                                          variant="outline"
+                                          className={cn(
+                                            "text-[10px] font-bold py-0.5 px-2 rounded-full border",
+                                            p.is_active
+                                              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                                              : "bg-muted text-muted-foreground border-border/80"
+                                          )}
+                                        >
+                                          {p.is_active ? "Active" : "Inactive"}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-2.5 border-t border-border/40">
+                                  <Button variant="outline" size="sm" onClick={() => openProductDialog(p)} className="h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 border-border/80 hover:bg-secondary text-muted-foreground hover:text-foreground">
+                                    <Pencil className="h-3.5 w-3.5" /> Edit
                                   </Button>
-                                )}
-                              </div>
-                            ) : (
-                              <>
-                                {/* Desktop View */}
-                                <div className="hidden md:block">
-                                  <Table>
-                                    <TableHeader className="bg-secondary/15">
-                                      <TableRow>
-                                        <TableHead className="font-bold">Item Name</TableHead>
-                                        <TableHead className="font-bold">Category</TableHead>
-                                        <TableHead className="font-bold">Price (GHC)</TableHead>
-                                        <TableHead className="font-bold">Stock Remaining</TableHead>
-                                        <TableHead className="font-bold">Vendor Partner</TableHead>
-                                        <TableHead className="font-bold">Status & Availability</TableHead>
-                                        <TableHead className="font-bold text-right">Actions</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {filteredList.map(p => (
-                                        <TableRow key={p.id} className="hover:bg-secondary/15">
-                                          <TableCell className="font-bold text-foreground">{p.name}</TableCell>
-                                          <TableCell>
-                                            <Badge variant="outline" className="capitalize text-xs font-semibold">
-                                              {p.category}
-                                            </Badge>
-                                          </TableCell>
-                                          <TableCell className="font-semibold text-primary">GHC {Number(p.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
-                                          <TableCell>
-                                            <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="font-bold text-xs">
-                                              {p.stock}
-                                            </Badge>
-                                          </TableCell>
-                                          <TableCell className="text-sm font-medium">{p.vendor || "In-House"}</TableCell>
-                                          <TableCell>
-                                            <div className="flex items-center gap-2.5">
-                                              <Switch
-                                                checked={p.is_active}
-                                                onCheckedChange={() => toggleProductStatus(p)}
-                                                data-testid={`product-toggle-${p.id}`}
-                                              />
-                                              <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                  "text-xs font-bold transition-colors py-0.5 px-2.5 rounded-full border",
-                                                  p.is_active
-                                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                                    : "bg-muted text-muted-foreground border-border/80"
-                                                )}
-                                              >
-                                                {p.is_active ? "Active" : "Inactive"}
-                                              </Badge>
-                                            </div>
-                                          </TableCell>
-                                          <TableCell className="text-right">
-                                            <div className="flex gap-1 justify-end">
-                                              <Button variant="ghost" size="sm" onClick={() => openProductDialog(p)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></Button>
-                                              <Button variant="ghost" size="sm" onClick={() => deleteProduct(p.id)} className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                                            </div>
-                                          </TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
+                                  <Button variant="outline" size="sm" onClick={() => deleteProduct(p.id)} className="h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 border-destructive/20 hover:bg-destructive/5 text-destructive">
+                                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                                  </Button>
                                 </div>
-
-                                {/* Mobile View */}
-                                <div className="block md:hidden p-4 space-y-3">
-                                  {filteredList.map(p => (
-                                    <Card key={p.id} className="p-4 space-y-3.5 border-border/80 shadow-md bg-card">
-                                      <div className="flex justify-between items-start gap-3">
-                                        <div>
-                                          <h4 className="font-bold text-sm sm:text-base text-foreground">{p.name}</h4>
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <Badge variant="outline" className="capitalize text-[10px] font-semibold">{p.category}</Badge>
-                                            {p.vendor && <span className="text-xs text-muted-foreground">Vendor: {p.vendor}</span>}
-                                          </div>
-                                        </div>
-                                        <div className="flex flex-col items-end shrink-0">
-                                          <span className="text-sm font-extrabold text-primary">GHC {Number(p.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                                          <div className="flex items-center gap-2 mt-1.5">
-                                            <Badge variant={p.stock > 0 ? "secondary" : "destructive"} className="text-[10px] font-bold">{p.stock} left</Badge>
-                                            <div className="flex items-center gap-1.5">
-                                              <Switch
-                                                checked={p.is_active}
-                                                onCheckedChange={() => toggleProductStatus(p)}
-                                                className="scale-75 origin-right"
-                                              />
-                                              <Badge
-                                                variant="outline"
-                                                className={cn(
-                                                  "text-[10px] font-bold py-0.5 px-2 rounded-full border",
-                                                  p.is_active
-                                                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                                                    : "bg-muted text-muted-foreground border-border/80"
-                                                )}
-                                              >
-                                                {p.is_active ? "Active" : "Inactive"}
-                                              </Badge>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="flex justify-end gap-2 pt-2.5 border-t border-border/40">
-                                        <Button variant="outline" size="sm" onClick={() => openProductDialog(p)} className="h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 border-border/80 hover:bg-secondary text-muted-foreground hover:text-foreground">
-                                          <Pencil className="h-3.5 w-3.5" /> Edit
-                                        </Button>
-                                        <Button variant="outline" size="sm" onClick={() => deleteProduct(p.id)} className="h-8 px-3 rounded-lg text-xs font-bold flex items-center gap-1.5 border-destructive/20 hover:bg-destructive/5 text-destructive">
-                                          <Trash2 className="h-3.5 w-3.5" /> Delete
-                                        </Button>
-                                      </div>
-                                    </Card>
-                                  ))}
-                                </div>
-                              </>
+                              </Card>
+                            ))}
+                            {products.filter(p => p.category === cat).length === 0 && (
+                              <p className="text-center text-sm text-muted-foreground py-8">No menu items found</p>
                             )}
-                          </CardContent>
-                        </Card>
-                      </TabsContent>
-                    );
-                  })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  ))}
                 </Tabs>
               </motion.div>
             )}
