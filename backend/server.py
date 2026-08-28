@@ -1539,9 +1539,13 @@ async def admin_login(data: AdminLoginReq, request: Request):
             "password": data.password
         })
         if not res or not res.session:
+            logger.warning(f"Admin login failed for {clean_email}: No session returned by Supabase")
             raise HTTPException(401, "Invalid credentials")
         return {"token": res.session.access_token, "email": res.user.email}
-    except Exception:
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Admin login failed for {clean_email}: {str(e)}")
         raise HTTPException(401, "Invalid credentials")
 
 @api_router.post("/admin/logout")

@@ -154,3 +154,23 @@ CREATE POLICY "Allow public read access to event_settings" ON public.event_setti
     FOR SELECT TO anon, authenticated USING (true);
 
 
+-- 8. Create profiles table (for administrative role mapping)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'admin',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow users to read own profile" ON public.profiles;
+CREATE POLICY "Allow users to read own profile" ON public.profiles
+    FOR SELECT TO authenticated USING (auth.uid() = id);
+
+GRANT ALL ON public.profiles TO postgres, service_role;
+GRANT SELECT ON public.profiles TO authenticated;
+
+
+
