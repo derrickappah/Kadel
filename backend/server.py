@@ -168,6 +168,7 @@ class LeadStatusUpdate(BaseModel):
 class AdminLoginReq(BaseModel):
     email: str
     password: str
+    turnstile_token: Optional[str] = None
 
 class ProductCreate(BaseModel):
     name: str
@@ -259,11 +260,12 @@ async def get_current_admin(request: Request):
         admin_emails_raw = os.environ.get('ADMIN_EMAILS', '').strip()
         admin_emails = [e.strip().lower() for e in admin_emails_raw.split(',') if e.strip()]
 
+        # Strict Fail-Closed Verification (OWASP A07 Remediation)
         if admin_emails:
-            is_admin = user_role == "admin" or user_email in admin_emails
+            is_admin = (user_role == "admin") or (user_email in admin_emails)
         else:
-            # When ADMIN_EMAILS is not configured, any authenticated Supabase user is granted admin access
-            is_admin = True
+            # When ADMIN_EMAILS is not configured, require explicit 'admin' role in metadata
+            is_admin = (user_role == "admin")
 
         if not is_admin:
             logger.warning(f"Unauthorized admin access attempt by user: {user_email}")
@@ -1448,6 +1450,17 @@ async def moolre_webhook(request: Request):
         logger.warning("Moolre webhook received without signature header")
         raise HTTPException(401, "Missing signature")
 
+    # Webhook Replay & Freshness Protection
+    timestamp_header = request.headers.get("x-moolre-timestamp") or request.headers.get("x-timestamp")
+    if timestamp_header:
+        try:
+            ts = float(timestamp_header)
+            if abs(time.time() - ts) > 300: # 5-minute replay window tolerance
+                logger.warning("Moolre webhook rejected due to expired timestamp")
+                raise HTTPException(401, "Webhook timestamp expired")
+        except ValueError:
+            pass
+
     computed = hmac.new(
         MOOLRE_PRIVATE_KEY.encode('utf-8'),
         body,
@@ -1506,12 +1519,23 @@ async def get_booking_by_code(reservation_code: str, request: Request):
 @api_router.post("/admin/login")
 async def admin_login(data: AdminLoginReq, request: Request):
     ip = get_client_ip(request)
-    if not check_rate_limit(f"login:{ip}", max_requests=10, window_seconds=60):
-        raise HTTPException(429, "Too many login attempts. Please try again in a minute.")
+    clean_email = data.email.strip().lower()
+
+    # Rate limiting: dual-key enforcement (per IP and per targeted account) to prevent distributed brute-force / credential stuffing
+    if not check_rate_limit(f"login_ip:{ip}", max_requests=10, window_seconds=60):
+        raise HTTPException(429, "Too many login attempts from this IP. Please try again in a minute.")
+    if not check_rate_limit(f"login_account:{clean_email}", max_requests=5, window_seconds=60):
+        raise HTTPException(429, "Too many failed attempts for this account. Please wait before retrying.")
+
+    # Bot protection if Turnstile is configured
+    if TURNSTILE_SECRET_KEY:
+        is_human = await verify_turnstile_token(data.turnstile_token, ip)
+        if not is_human:
+            raise HTTPException(400, "Bot verification challenge failed. Please refresh and try again.")
 
     try:
         res = await supabase.auth.sign_in_with_password({
-            "email": data.email,
+            "email": clean_email,
             "password": data.password
         })
         if not res or not res.session:
@@ -1519,6 +1543,19 @@ async def admin_login(data: AdminLoginReq, request: Request):
         return {"token": res.session.access_token, "email": res.user.email}
     except Exception:
         raise HTTPException(401, "Invalid credentials")
+
+@api_router.post("/admin/logout")
+async def admin_logout(request: Request, admin=Depends(get_current_admin)):
+    """Server-side session invalidation endpoint"""
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        token = auth.split(" ")[1]
+        try:
+            # Revoke session in Supabase
+            await supabase.auth.sign_out(token)
+        except Exception as e:
+            logger.warning(f"Supabase sign_out notice: {e}")
+    return {"message": "Logged out successfully"}
 
 @api_router.get("/admin/stats")
 async def admin_get_stats(admin=Depends(get_current_admin)):
@@ -1766,12 +1803,11 @@ async def create_lead(lead: LeadCreate, request: Request):
                     last_dt = datetime.fromisoformat(last_sent.replace("Z", "+00:00"))
                     elapsed = (now_utc - last_dt).total_seconds()
                     if elapsed < 300:
-                        # Return existing registration without re-dispatching email to prevent spam/toll fraud
+                        # Return generic acknowledgment without leaking existing identity data or VIP codes
                         return {
                             "status": "success",
-                            "lead_code": existing_lead.get("lead_code", ""),
-                            "message": "You are already on the priority waitlist! Confirmation was recently sent.",
-                            "data": existing_lead
+                            "lead_code": "REGISTERED",
+                            "message": "Thank you! You are already on the priority waitlist. Your confirmation details remain active."
                         }
                 except Exception:
                     pass

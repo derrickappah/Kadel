@@ -243,10 +243,19 @@ export default function AdminDashboard() {
     });
   }, [leads, leadSearch, leadStatusFilter]);
 
-  const logout = () => {
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_email");
-    navigate("/admin/login");
+  const logout = async () => {
+    try {
+      if (token) {
+        await axios.post(`${API}/admin/logout`, {}, authHeaders()).catch(() => {});
+      }
+    } catch (e) {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_email");
+      toast.success("Logged out successfully");
+      navigate("/admin/login");
+    }
   };
 
   // Product CRUD & Status Toggle

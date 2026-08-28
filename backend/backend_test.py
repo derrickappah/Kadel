@@ -350,6 +350,40 @@ class KaDelAPITester:
                 assert "payment_reference" not in lookup_data, "VULNERABILITY: payment_reference leaked in lookup endpoint!"
                 print("   ✅ Verified: booking_secret and payment_reference safely omitted from public lookup.")
 
+    def test_identification_and_authentication_regressions(self):
+        """Security Regression Suite for OWASP A07: Identification and Authentication Failures"""
+        print("\n" + "="*60)
+        print("TESTING OWASP A07: IDENTIFICATION & AUTHENTICATION REGRESSIONS")
+        print("="*60)
+
+        # 1. Lead Duplicate Registration Sanitization (No PII Leakage)
+        lead_payload = {
+            "full_name": "Auth Test Student",
+            "email": "auth_test_student@example.com",
+            "phone": "+233240000001",
+            "institution": "University of Ghana",
+            "course": "Computer Science",
+            "estimated_guests": 10
+        }
+        # First submission
+        self.run_test("Initial Lead Registration", "POST", "leads", [200, 429], data=lead_payload)
+        # Duplicate submission within cooldown window
+        success, dup_resp = self.run_test("Duplicate Lead Registration", "POST", "leads", [200, 429], data=lead_payload)
+        if success and dup_resp:
+            assert "data" not in dup_resp, "VULNERABILITY: Existing lead PII leaked in duplicate response!"
+            assert "full_name" not in str(dup_resp), "VULNERABILITY: Customer name leaked in duplicate response!"
+            print("   ✅ Verified: Lead deduplication returns sanitized response without PII exposure.")
+
+        # 2. Server-side Logout Invalidation
+        if self.admin_token:
+            headers = {"Authorization": f"Bearer {self.admin_token}"}
+            success, logout_resp = self.run_test("Server-side Admin Logout", "POST", "admin/logout", 200, headers=headers)
+            if success:
+                print("   ✅ Verified: /admin/logout successfully processes session termination.")
+
+        # 3. Unauthenticated Access to Logout
+        self.run_test("Unauthenticated Logout Attempt (Expect 401)", "POST", "admin/logout", 401)
+
 def main():
     try:
         sys.stdout.reconfigure(encoding='utf-8')
@@ -372,12 +406,15 @@ def main():
     # 2. Run booking flow tests (creates test records)
     tester.test_booking_flow()
 
-    # 3. Run access control regression tests
+    # 3. Run access control regression tests (A01)
     tester.test_access_control_regressions()
     
     # 4. Run admin tests
     if tester.test_admin_login():
         tester.test_admin_endpoints()
+
+    # 5. Run identification and authentication tests (A07)
+    tester.test_identification_and_authentication_regressions()
 
     # Print summary
     print("\n" + "="*60)
