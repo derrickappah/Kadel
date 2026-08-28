@@ -17,6 +17,7 @@ import json
 import random
 import string
 import secrets
+import re
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -48,14 +49,21 @@ from collections import defaultdict
 _rate_limit_records = defaultdict(list)
 
 def check_rate_limit(key: str, max_requests: int = 30, window_seconds: int = 60) -> bool:
-    """Returns True if within rate limit, False if rate limit exceeded"""
+    """Returns True if within rate limit, False if rate limit exceeded.
+    Includes automatic garbage collection to prevent unbounded memory growth."""
     now = time.time()
     cutoff = now - window_seconds
-    # Clean old requests
+    # Clean old requests for this key
     _rate_limit_records[key] = [t for t in _rate_limit_records[key] if t > cutoff]
     if len(_rate_limit_records[key]) >= max_requests:
         return False
     _rate_limit_records[key].append(now)
+    
+    # Periodic GC if dictionary grows large (over 10,000 keys)
+    if len(_rate_limit_records) > 10000:
+        stale_keys = [k for k, v in _rate_limit_records.items() if not v or v[-1] <= cutoff]
+        for k in stale_keys:
+            _rate_limit_records.pop(k, None)
     return True
 
 TRUSTED_PROXIES = {
@@ -170,6 +178,10 @@ class AdminLoginReq(BaseModel):
     password: str
     turnstile_token: Optional[str] = None
 
+class AdminPasswordChangeReq(BaseModel):
+    current_password: str
+    new_password: str
+
 class ProductCreate(BaseModel):
     name: str
     category: str
@@ -250,11 +262,16 @@ async def get_current_admin(request: Request):
             raise HTTPException(401, "Invalid token")
             
         user_email = (res.user.email or "").strip().lower()
+        
+        # OWASP A07 Fix: ONLY trust app_metadata (set by server/service role), NEVER user_metadata (client-writable)
         user_role = ""
         if res.user.app_metadata and isinstance(res.user.app_metadata, dict):
             user_role = res.user.app_metadata.get("role", "")
-        if not user_role and res.user.user_metadata and isinstance(res.user.user_metadata, dict):
-            user_role = res.user.user_metadata.get("role", "")
+        
+        # Log attempt if non-admin user attempts to supply fake role in user_metadata
+        if res.user.user_metadata and isinstance(res.user.user_metadata, dict) and res.user.user_metadata.get("role") == "admin":
+            if user_role != "admin":
+                logger.warning(f"Ignored untrusted user_metadata admin role claim for user {user_email}")
 
         # Check configured admin emails if specified
         admin_emails_raw = os.environ.get('ADMIN_EMAILS', '').strip()
@@ -264,14 +281,14 @@ async def get_current_admin(request: Request):
         if admin_emails:
             is_admin = (user_role == "admin") or (user_email in admin_emails)
         else:
-            # When ADMIN_EMAILS is not configured, require explicit 'admin' role in metadata
+            # When ADMIN_EMAILS is not configured, require explicit 'admin' role in server-managed app_metadata
             is_admin = (user_role == "admin")
 
         if not is_admin:
             logger.warning(f"Unauthorized admin access attempt by user: {user_email}")
             raise HTTPException(403, "Access forbidden: administrator privileges required")
 
-        return {"email": res.user.email, "id": res.user.id, "role": "admin"}
+        return {"email": res.user.email, "id": res.user.id, "role": "admin", "token": token}
     except HTTPException:
         raise
     except Exception as e:
@@ -1561,6 +1578,68 @@ async def admin_logout(request: Request, admin=Depends(get_current_admin)):
             logger.warning(f"Supabase sign_out notice: {e}")
     return {"message": "Logged out successfully"}
 
+def validate_password_complexity(password: str) -> Optional[str]:
+    """Enforce strong password policy: >= 8 chars, uppercase, lowercase, digit, special char"""
+    if len(password) < 8:
+        return "Password must be at least 8 characters long"
+    if not re.search(r"[A-Z]", password):
+        return "Password must contain at least one uppercase letter"
+    if not re.search(r"[a-z]", password):
+        return "Password must contain at least one lowercase letter"
+    if not re.search(r"[0-9]", password):
+        return "Password must contain at least one number"
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>_\-\=\+\\\/\[\]]", password):
+        return "Password must contain at least one special character"
+    return None
+
+@api_router.post("/admin/change-password")
+async def admin_change_password(data: AdminPasswordChangeReq, request: Request, admin=Depends(get_current_admin)):
+    """Allows authenticated admin to securely update their password after re-verifying current password"""
+    clean_email = admin["email"].strip().lower()
+
+    # Rate limiting on password changes (3 attempts per minute per account)
+    if not check_rate_limit(f"pwd_change:{clean_email}", max_requests=3, window_seconds=60):
+        raise HTTPException(429, "Too many password change attempts. Please wait before retrying.")
+
+    # Validate password complexity
+    policy_err = validate_password_complexity(data.new_password)
+    if policy_err:
+        raise HTTPException(400, policy_err)
+
+    if data.current_password == data.new_password:
+        raise HTTPException(400, "New password must be different from current password")
+
+    # Re-authenticate current password with Supabase to prevent unauthorized credential hijacking
+    try:
+        verify_res = await supabase.auth.sign_in_with_password({
+            "email": clean_email,
+            "password": data.current_password
+        })
+        if not verify_res or not verify_res.user:
+            raise HTTPException(401, "Current password is incorrect")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Password change verification failed for {clean_email}: {e}")
+        raise HTTPException(401, "Current password is incorrect")
+
+    # Update password via Supabase Auth
+    try:
+        await supabase.auth.admin.update_user_by_id(
+            admin["id"],
+            {"password": data.new_password}
+        )
+        logger.info(f"Password successfully changed for admin: {clean_email}")
+        return {"message": "Password changed successfully"}
+    except Exception as e:
+        logger.warning(f"Admin API update notice for {clean_email} ({e}). Attempting user session update.")
+        try:
+            await supabase.auth.update_user({"password": data.new_password})
+            return {"message": "Password changed successfully"}
+        except Exception as fallback_e:
+            logger.error(f"Fallback update_user error: {fallback_e}")
+            raise HTTPException(500, "Failed to update password. Please try again later.")
+
 @api_router.get("/admin/stats")
 async def admin_get_stats(admin=Depends(get_current_admin)):
     res = await supabase.table("bookings").select("status, total_amount, attendees_count").execute()
@@ -1587,8 +1666,13 @@ async def admin_get_bookings(admin=Depends(get_current_admin)):
 
 @api_router.get("/admin/payments")
 async def admin_get_payments(admin=Depends(get_current_admin)):
-    res = await supabase.table("payments").select("*").order("created_at", desc=True).execute()
-    return res.data
+    try:
+        res = await supabase.table("payments").select("*, bookings(reservation_code, graduate_name, email, phone, course, graduation_date, total_amount)").order("created_at", desc=True).execute()
+        return res.data
+    except Exception as e:
+        logger.warning(f"Error fetching payments with joined bookings: {e}. Falling back to standard query.")
+        res = await supabase.table("payments").select("*").order("created_at", desc=True).execute()
+        return res.data
 
 @api_router.get("/admin/products")
 async def admin_get_products(admin=Depends(get_current_admin)):

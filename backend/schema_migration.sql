@@ -119,18 +119,11 @@ CREATE INDEX IF NOT EXISTS idx_payments_ref ON public.payments(reference);
 
 
 -- 7. Table Permissions & Row Level Security (RLS)
--- Principle of Least Privilege: Grant full access only to postgres and service_role
-GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, service_role;
-
--- Revoke default public access from anon and authenticated roles
-REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
-REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
-
--- Grant selective read-only permissions to anon and authenticated for public catalogs
-GRANT SELECT ON public.products TO anon, authenticated;
-GRANT SELECT ON public.graduation_dates TO anon, authenticated;
-GRANT SELECT ON public.event_settings TO anon, authenticated;
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
 
 -- Enable Row Level Security (RLS) on all public tables
 ALTER TABLE public.graduation_dates ENABLE ROW LEVEL SECURITY;
@@ -140,19 +133,64 @@ ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.event_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 
--- Public read-only policies for public catalog & settings
-DROP POLICY IF EXISTS "Allow public read access to products" ON public.products;
-CREATE POLICY "Allow public read access to products" ON public.products
-    FOR SELECT TO anon, authenticated USING (is_active = true);
+-- Hardened Least-Privilege RLS Policies (OWASP A07 Remediation)
 
-DROP POLICY IF EXISTS "Allow public read access to graduation_dates" ON public.graduation_dates;
-CREATE POLICY "Allow public read access to graduation_dates" ON public.graduation_dates
-    FOR SELECT TO anon, authenticated USING (is_active = true);
+-- Products: Public can view active products; mutations restricted to service role
+DROP POLICY IF EXISTS "Allow all on products" ON public.products;
+DROP POLICY IF EXISTS "Public can view active products" ON public.products;
+DROP POLICY IF EXISTS "Service role full access on products" ON public.products;
 
-DROP POLICY IF EXISTS "Allow public read access to event_settings" ON public.event_settings;
-CREATE POLICY "Allow public read access to event_settings" ON public.event_settings
+CREATE POLICY "Public can view active products" ON public.products
+    FOR SELECT TO anon, authenticated USING (is_active = true);
+CREATE POLICY "Service role full access on products" ON public.products
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Graduation Dates: Public can view active dates; mutations restricted to service role
+DROP POLICY IF EXISTS "Allow all on graduation_dates" ON public.graduation_dates;
+DROP POLICY IF EXISTS "Public can view active dates" ON public.graduation_dates;
+DROP POLICY IF EXISTS "Service role full access on graduation_dates" ON public.graduation_dates;
+
+CREATE POLICY "Public can view active dates" ON public.graduation_dates
+    FOR SELECT TO anon, authenticated USING (is_active = true);
+CREATE POLICY "Service role full access on graduation_dates" ON public.graduation_dates
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Event Settings: Public can read settings; mutations restricted to service role
+DROP POLICY IF EXISTS "Allow all on event_settings" ON public.event_settings;
+DROP POLICY IF EXISTS "Public can view event settings" ON public.event_settings;
+DROP POLICY IF EXISTS "Service role full access on event_settings" ON public.event_settings;
+
+CREATE POLICY "Public can view event settings" ON public.event_settings
     FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Service role full access on event_settings" ON public.event_settings
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
+-- Bookings: Public can insert pending bookings; updates and queries managed by backend service role
+DROP POLICY IF EXISTS "Allow all on bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Public can insert pending bookings" ON public.bookings;
+DROP POLICY IF EXISTS "Service role full access on bookings" ON public.bookings;
+
+CREATE POLICY "Public can insert pending bookings" ON public.bookings
+    FOR INSERT TO anon, authenticated WITH CHECK (status = 'pending');
+CREATE POLICY "Service role full access on bookings" ON public.bookings
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Payments: Highly sensitive table; restricted strictly to backend service role
+DROP POLICY IF EXISTS "Allow all on payments" ON public.payments;
+DROP POLICY IF EXISTS "Service role full access on payments" ON public.payments;
+
+CREATE POLICY "Service role full access on payments" ON public.payments
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+-- Leads: Public can register interest (insert only); management restricted to backend service role
+DROP POLICY IF EXISTS "Allow all on leads" ON public.leads;
+DROP POLICY IF EXISTS "Public can insert leads" ON public.leads;
+DROP POLICY IF EXISTS "Service role full access on leads" ON public.leads;
+
+CREATE POLICY "Public can insert leads" ON public.leads
+    FOR INSERT TO anon, authenticated WITH CHECK (status = 'pending');
+CREATE POLICY "Service role full access on leads" ON public.leads
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- 8. Create profiles table (for administrative role mapping)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -165,12 +203,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Allow users to read own profile" ON public.profiles;
-CREATE POLICY "Allow users to read own profile" ON public.profiles
-    FOR SELECT TO authenticated USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow all on profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Service role full access on profiles" ON public.profiles;
 
-GRANT ALL ON public.profiles TO postgres, service_role;
-GRANT SELECT ON public.profiles TO authenticated;
+CREATE POLICY "Service role full access on profiles" ON public.profiles
+    FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 
 

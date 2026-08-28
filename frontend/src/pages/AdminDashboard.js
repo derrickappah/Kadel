@@ -20,7 +20,8 @@ import {
   LayoutDashboard, Package, Receipt, Table2, Calendar, Settings, LogOut,
   Plus, Pencil, Trash2, Users, CreditCard, Loader2, Menu, X, CheckCircle,
   BarChart3, TrendingUp, Search, ArrowUpDown, ChevronLeft, ChevronRight,
-  Download, Sun, Moon, Sparkles, CheckSquare, Square, SlidersHorizontal, UserCheck, Mail
+  Download, Sun, Moon, Sparkles, CheckSquare, Square, SlidersHorizontal, UserCheck, Mail,
+  Copy, Check, ExternalLink, Eye, RefreshCw, FileText, Filter, DollarSign
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "analytics", label: "Analytics", icon: BarChart3 },
   { id: "bookings", label: "Bookings", icon: Receipt },
+  { id: "payments", label: "Payment Records", icon: CreditCard },
   { id: "leads", label: "Priority Waitlist", icon: UserCheck },
   { id: "products", label: "Products", icon: Package },
   { id: "dates", label: "Dates", icon: Calendar },
@@ -39,7 +41,7 @@ const NAV_ITEMS = [
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { tab } = useParams();
-  const validTabs = useMemo(() => ["overview", "analytics", "bookings", "leads", "products", "dates", "settings"], []);
+  const validTabs = useMemo(() => ["overview", "analytics", "bookings", "payments", "leads", "products", "dates", "settings"], []);
   const activeTab = useMemo(() => {
     if (tab && validTabs.includes(tab.toLowerCase())) {
       return tab.toLowerCase();
@@ -80,6 +82,16 @@ export default function AdminDashboard() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [selectedBookings, setSelectedBookings] = useState([]);
+
+  // Payment Records Filters & State
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("all");
+  const [paymentSortField, setPaymentSortField] = useState("created_at");
+  const [paymentSortOrder, setPaymentSortOrder] = useState("desc");
+  const [paymentCurrentPage, setPaymentCurrentPage] = useState(1);
+  const [paymentPageSize, setPaymentPageSize] = useState(10);
+  const [paymentDetailsModal, setPaymentDetailsModal] = useState(null);
+  const [copiedRef, setCopiedRef] = useState(null);
 
   const token = localStorage.getItem("admin_token");
 
@@ -685,10 +697,198 @@ export default function AdminDashboard() {
       success: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/45 dark:text-emerald-300 border-emerald-200/50",
     };
     return (
-      <Badge variant="outline" className={cn("text-xs font-bold capitalize py-0.5 px-2.5 rounded-full border shadow-2xs", map[status])}>
+      <Badge variant="outline" className={cn("text-xs font-bold capitalize py-0.5 px-2.5 rounded-full border shadow-2xs", map[status] || "bg-secondary text-foreground")}>
         {status}
       </Badge>
     );
+  };
+
+  // Payment Analytics & Metrics Calculation
+  const paymentStats = useMemo(() => {
+    const totalCount = payments.length;
+    const successfulPayments = payments.filter(p => p.status === "success" || p.status === "confirmed");
+    const successCount = successfulPayments.length;
+    const pendingPayments = payments.filter(p => p.status === "pending");
+    const pendingCount = pendingPayments.length;
+    const failedPayments = payments.filter(p => p.status === "failed" || p.status === "cancelled");
+    const failedCount = failedPayments.length;
+
+    const totalGrossRevenue = successfulPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const pendingVolume = pendingPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const averageOrderValue = successCount > 0 ? (totalGrossRevenue / successCount) : 0;
+    const successRate = totalCount > 0 ? ((successCount / totalCount) * 100).toFixed(1) : "0.0";
+
+    return {
+      totalCount,
+      successCount,
+      pendingCount,
+      failedCount,
+      totalGrossRevenue,
+      pendingVolume,
+      averageOrderValue,
+      successRate
+    };
+  }, [payments]);
+
+  // Payment status counts for filter pills
+  const paymentStatusCounts = useMemo(() => {
+    return {
+      all: payments.length,
+      success: payments.filter(p => p.status === "success" || p.status === "confirmed").length,
+      pending: payments.filter(p => p.status === "pending").length,
+      failed: payments.filter(p => p.status === "failed" || p.status === "cancelled").length
+    };
+  }, [payments]);
+
+  // Filtered and sorted payments
+  const filteredPayments = useMemo(() => {
+    let result = payments.map(p => {
+      const associatedBooking = p.bookings || bookings.find(b => b.id === p.booking_id || (p.reference && b.payment_reference === p.reference)) || {};
+      return {
+        ...p,
+        booking: associatedBooking
+      };
+    });
+
+    // 1. Search Query
+    if (paymentSearch.trim()) {
+      const q = paymentSearch.toLowerCase().trim();
+      result = result.filter(p => {
+        const refMatch = p.reference && p.reference.toLowerCase().includes(q);
+        const bookCodeMatch = p.booking?.reservation_code && p.booking.reservation_code.toLowerCase().includes(q);
+        const nameMatch = p.booking?.graduate_name && p.booking.graduate_name.toLowerCase().includes(q);
+        const emailMatch = p.booking?.email && p.booking.email.toLowerCase().includes(q);
+        const phoneMatch = p.booking?.phone && p.booking.phone.toLowerCase().includes(q);
+        const channelMatch = (p.channel && p.channel.toLowerCase().includes(q)) || (p.gateway && p.gateway.toLowerCase().includes(q));
+        const amountMatch = String(p.amount || "").includes(q);
+        return refMatch || bookCodeMatch || nameMatch || emailMatch || phoneMatch || channelMatch || amountMatch;
+      });
+    }
+
+    // 2. Status Filter
+    if (paymentStatusFilter !== "all") {
+      if (paymentStatusFilter === "success") {
+        result = result.filter(p => p.status === "success" || p.status === "confirmed");
+      } else {
+        result = result.filter(p => p.status === paymentStatusFilter);
+      }
+    }
+
+    // 3. Sorting
+    result.sort((a, b) => {
+      let aVal = a[paymentSortField];
+      let bVal = b[paymentSortField];
+
+      if (paymentSortField === "amount") {
+        aVal = parseFloat(aVal) || 0;
+        bVal = parseFloat(bVal) || 0;
+        return paymentSortOrder === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      if (paymentSortField === "graduate_name") {
+        aVal = a.booking?.graduate_name || "";
+        bVal = b.booking?.graduate_name || "";
+      }
+
+      if (aVal === null || aVal === undefined) aVal = "";
+      if (bVal === null || bVal === undefined) bVal = "";
+
+      if (typeof aVal === "string") {
+        return paymentSortOrder === "asc"
+          ? aVal.localeCompare(bVal)
+          : bVal.localeCompare(aVal);
+      } else {
+        return paymentSortOrder === "asc"
+          ? (aVal > bVal ? 1 : -1)
+          : (bVal > aVal ? 1 : -1);
+      }
+    });
+
+    return result;
+  }, [payments, bookings, paymentSearch, paymentStatusFilter, paymentSortField, paymentSortOrder]);
+
+  // Paginated payments
+  const paginatedPayments = useMemo(() => {
+    const startIndex = (paymentCurrentPage - 1) * paymentPageSize;
+    return filteredPayments.slice(startIndex, startIndex + paymentPageSize);
+  }, [filteredPayments, paymentCurrentPage, paymentPageSize]);
+
+  const totalPaymentPages = Math.ceil(filteredPayments.length / paymentPageSize) || 1;
+
+  useEffect(() => {
+    setPaymentCurrentPage(1);
+  }, [paymentSearch, paymentStatusFilter]);
+
+  const handlePaymentHeaderSort = (field) => {
+    if (paymentSortField === field) {
+      setPaymentSortOrder(o => o === "asc" ? "desc" : "asc");
+    } else {
+      setPaymentSortField(field);
+      setPaymentSortOrder("desc");
+    }
+  };
+
+  const handleCopy = (text, type = "ref") => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedRef(`${type}_${text}`);
+    toast.success(`Copied: ${text}`);
+    setTimeout(() => setCopiedRef(null), 2000);
+  };
+
+  const exportPaymentsCSV = () => {
+    if (!filteredPayments.length) {
+      toast.error("No payment records available to export");
+      return;
+    }
+
+    const escapeCSV = (val) => {
+      if (val == null) return "";
+      const str = String(val);
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const headers = [
+      "Payment Reference",
+      "Amount (GHC)",
+      "Status",
+      "Gateway/Channel",
+      "Reservation Code",
+      "Graduate Name",
+      "Customer Email",
+      "Customer Phone",
+      "Event Date",
+      "Date Created"
+    ];
+
+    const rows = filteredPayments.map(p => {
+      const b = p.booking || {};
+      return [
+        escapeCSV(p.reference),
+        escapeCSV(Number(p.amount || 0).toFixed(2)),
+        escapeCSV(p.status),
+        escapeCSV(p.gateway || p.channel || "Moolre"),
+        escapeCSV(b.reservation_code || "N/A"),
+        escapeCSV(b.graduate_name || "N/A"),
+        escapeCSV(b.email || "N/A"),
+        escapeCSV(b.phone || "N/A"),
+        escapeCSV(b.graduation_date || "N/A"),
+        escapeCSV(p.created_at ? new Date(p.created_at).toLocaleString() : "N/A")
+      ];
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `kadel_payment_records_${new Date().toISOString().split("T")[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success(`${filteredPayments.length} payment records exported to CSV!`);
   };
 
   // Render Skeletons for Loading State
@@ -1573,12 +1773,235 @@ export default function AdminDashboard() {
                   )}
                 </Card>
 
-                {/* Payments Section */}
-                <div className="pt-4">
-                  <h3 className="font-display text-2xl font-extrabold tracking-tight mt-6">Payment Records</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Audit log of all mobile money / card gateway transactions processed.</p>
+                {/* Link to Dedicated Payment Records Page */}
+                <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 rounded-2xl bg-secondary/30 border border-border/60 gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                      <CreditCard className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground">Need complete financial & gateway transaction logs?</h4>
+                      <p className="text-xs text-muted-foreground">Inspect mobile money & card gateway records, export accounting logs, and view transaction receipts.</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/admin/payments")}
+                    className="h-9 px-4 rounded-xl text-xs font-bold shrink-0 border-border/80 hover:bg-secondary flex items-center gap-1.5 self-end sm:self-center"
+                  >
+                    Open Payment Records <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                
+              </motion.div>
+            )}
+
+            {/* DEDICATED PAYMENT RECORDS TAB */}
+            {activeTab === "payments" && (
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-6 animate-in fade-in duration-200"
+              >
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2.5">
+                      <h2 className="font-display text-3xl font-extrabold tracking-tight text-foreground">Payment Records</h2>
+                      <Badge variant="outline" className="text-xs font-bold bg-primary/10 text-primary border-primary/25 px-2.5 py-0.5 rounded-full">
+                        {paymentStats.totalCount} Total
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">Audit log and financial ledger for all mobile money, card, and gateway transactions.</p>
+                  </div>
+                  <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={fetchAll}
+                      className="h-10 px-3.5 rounded-xl border-border/80 text-xs font-bold flex items-center gap-2 bg-card hover:bg-secondary"
+                      title="Refresh Payment Data"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                      Refresh
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={exportPaymentsCSV}
+                      className="h-10 px-4 rounded-xl border-border/80 text-xs font-bold flex items-center gap-2 bg-card hover:bg-secondary"
+                    >
+                      <Download className="h-4 w-4 text-muted-foreground" />
+                      Export CSV
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Financial KPI Cards */}
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.02 }}>
+                    <Card className="p-4 border-border/80 shadow-md bg-card hover:shadow-lg transition-shadow duration-200 h-full">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Gross Volume</span>
+                        <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+                          <DollarSign className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight">GHC {paymentStats.totalGrossRevenue.toFixed(2)}</p>
+                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-1">From settled transactions</p>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.04 }}>
+                    <Card className="p-4 border-border/80 shadow-md bg-card hover:shadow-lg transition-shadow duration-200 h-full">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Successful</span>
+                        <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500">
+                          <CheckCircle className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight">{paymentStats.successCount}</p>
+                      <p className="text-[11px] text-muted-foreground font-medium mt-1">{paymentStats.successRate}% success rate</p>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.06 }}>
+                    <Card className="p-4 border-border/80 shadow-md bg-card hover:shadow-lg transition-shadow duration-200 h-full">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Pending</span>
+                        <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500">
+                          <Loader2 className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight">{paymentStats.pendingCount}</p>
+                      <p className="text-[11px] text-muted-foreground font-medium mt-1">GHC {paymentStats.pendingVolume.toFixed(2)} in checkout</p>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+                    <Card className="p-4 border-border/80 shadow-md bg-card hover:shadow-lg transition-shadow duration-200 h-full">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Failed / Cancelled</span>
+                        <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500">
+                          <X className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight">{paymentStats.failedCount}</p>
+                      <p className="text-[11px] text-muted-foreground font-medium mt-1">Uncompleted payments</p>
+                    </Card>
+                  </motion.div>
+
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="col-span-2 lg:col-span-1">
+                    <Card className="p-4 border-border/80 shadow-md bg-card hover:shadow-lg transition-shadow duration-200 h-full">
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Avg Transaction</span>
+                        <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
+                          <TrendingUp className="h-4 w-4" />
+                        </div>
+                      </div>
+                      <p className="text-xl sm:text-2xl font-black text-foreground tracking-tight">GHC {paymentStats.averageOrderValue.toFixed(2)}</p>
+                      <p className="text-[11px] text-muted-foreground font-medium mt-1">Per successful booking</p>
+                    </Card>
+                  </motion.div>
+                </div>
+
+                {/* Search, Filter Pills and Controls */}
+                <Card className="border-border/80 shadow-md bg-card">
+                  <CardContent className="p-4 flex flex-col gap-4">
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                      {/* Search Input */}
+                      <div className="relative flex-1 max-w-md w-full">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search reference, reservation code, customer, email, phone..."
+                          value={paymentSearch}
+                          onChange={e => setPaymentSearch(e.target.value)}
+                          className="h-10 pl-9 pr-9 rounded-xl border-border/80 text-sm focus:ring-1 focus:ring-primary/20 w-full"
+                        />
+                        {paymentSearch && (
+                          <button
+                            onClick={() => setPaymentSearch("")}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-secondary text-muted-foreground hover:text-foreground"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Status Quick-filters pills */}
+                      <div className="flex items-center gap-1 bg-secondary/35 p-1 rounded-xl border border-border/50 w-fit shrink-0 overflow-x-auto">
+                        {[
+                          { id: "all", label: "All", count: paymentStatusCounts.all },
+                          { id: "success", label: "Successful", count: paymentStatusCounts.success, color: "text-emerald-600 bg-emerald-500/10 dark:text-emerald-400" },
+                          { id: "pending", label: "Pending", count: paymentStatusCounts.pending, color: "text-amber-600 bg-amber-500/10 dark:text-amber-400" },
+                          { id: "failed", label: "Failed", count: paymentStatusCounts.failed, color: "text-rose-600 bg-rose-500/10 dark:text-rose-400" },
+                        ].map(st => (
+                          <button
+                            key={st.id}
+                            onClick={() => setPaymentStatusFilter(st.id)}
+                            className={cn(
+                              "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all duration-150 shrink-0",
+                              paymentStatusFilter === st.id
+                                ? "bg-card text-foreground shadow-xs border border-border/80"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            <span>{st.label}</span>
+                            <span className={cn("px-1.5 py-0.5 rounded-md text-[9px] font-black", st.color || "bg-secondary text-muted-foreground")}>
+                              {st.count}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span>Sort By:</span>
+                        <Select value={paymentSortField} onValueChange={v => setPaymentSortField(v)}>
+                          <SelectTrigger className="h-8 w-36 rounded-lg text-xs font-semibold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="created_at">Date Received</SelectItem>
+                            <SelectItem value="amount">Amount</SelectItem>
+                            <SelectItem value="reference">Reference</SelectItem>
+                            <SelectItem value="graduate_name">Customer Name</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPaymentSortOrder(o => o === "asc" ? "desc" : "asc")}
+                          className="h-8 px-2 text-xs font-bold rounded-lg"
+                          title="Toggle Ascending / Descending"
+                        >
+                          {paymentSortOrder === "desc" ? "Newest / Highest First ↓" : "Oldest / Lowest First ↑"}
+                        </Button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span>Show:</span>
+                        <Select value={String(paymentPageSize)} onValueChange={v => { setPaymentPageSize(Number(v)); setPaymentCurrentPage(1); }}>
+                          <SelectTrigger className="h-8 w-20 rounded-lg text-xs font-semibold">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-xl">
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="25">25</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                            <SelectItem value="100">100</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <span>records</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Payments Table & Cards Container */}
                 <Card className="border-border/80 shadow-md bg-card overflow-hidden rounded-2xl">
                   <CardContent className="p-0">
                     {/* Desktop View */}
@@ -1586,24 +2009,114 @@ export default function AdminDashboard() {
                       <Table data-testid="admin-payments-table">
                         <TableHeader className="bg-secondary/15">
                           <TableRow className="border-b border-border/45">
-                            <TableHead className="font-bold">Reference</TableHead>
-                            <TableHead className="font-bold">Amount Paid</TableHead>
+                            <TableHead onClick={() => handlePaymentHeaderSort("reference")} className="font-bold cursor-pointer hover:text-foreground">
+                              <span className="flex items-center gap-1">Reference <ArrowUpDown className="h-3 w-3" /></span>
+                            </TableHead>
+                            <TableHead className="font-bold">Customer & Reservation</TableHead>
+                            <TableHead onClick={() => handlePaymentHeaderSort("amount")} className="font-bold cursor-pointer hover:text-foreground">
+                              <span className="flex items-center gap-1">Amount <ArrowUpDown className="h-3 w-3" /></span>
+                            </TableHead>
                             <TableHead className="font-bold">Payment Status</TableHead>
-                            <TableHead className="font-bold">Date Received</TableHead>
+                            <TableHead className="font-bold">Gateway / Channel</TableHead>
+                            <TableHead onClick={() => handlePaymentHeaderSort("created_at")} className="font-bold cursor-pointer hover:text-foreground">
+                              <span className="flex items-center gap-1">Date & Time <ArrowUpDown className="h-3 w-3" /></span>
+                            </TableHead>
+                            <TableHead className="font-bold text-right pr-6">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {payments.map(p => (
-                            <TableRow key={p.id} className="hover:bg-secondary/15 border-b border-border/30">
-                              <TableCell className="font-mono text-xs font-bold text-foreground">{p.reference}</TableCell>
-                              <TableCell className="font-bold text-foreground">GHC {p.amount?.toFixed(2)}</TableCell>
-                              <TableCell>{statusBadge(p.status)}</TableCell>
-                              <TableCell className="text-sm">{p.created_at ? new Date(p.created_at).toLocaleDateString() : "-"}</TableCell>
-                            </TableRow>
-                          ))}
-                          {payments.length === 0 && (
+                          {paginatedPayments.map(p => {
+                            const b = p.booking || {};
+                            return (
+                              <TableRow key={p.id} className="hover:bg-secondary/15 border-b border-border/30 transition-colors">
+                                <TableCell>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono text-xs font-bold text-foreground bg-secondary/20 px-2 py-1 rounded-md border border-border/50">
+                                      {p.reference}
+                                    </span>
+                                    <button
+                                      onClick={() => handleCopy(p.reference, "ref")}
+                                      className="p-1 rounded-md hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                                      title="Copy Reference"
+                                    >
+                                      {copiedRef === `ref_${p.reference}` ? (
+                                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                      ) : (
+                                        <Copy className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-sm text-foreground">
+                                        {b.graduate_name || "Direct / Unlinked"}
+                                      </span>
+                                      {b.reservation_code && (
+                                        <Badge variant="secondary" className="font-mono text-[10px] font-bold px-1.5 py-0">
+                                          {b.reservation_code}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {(b.email || b.phone) && (
+                                      <p className="text-xs text-muted-foreground">
+                                        {b.email} {b.phone ? `• ${b.phone}` : ""}
+                                      </p>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="font-extrabold text-foreground text-sm">
+                                    GHC {Number(p.amount || 0).toFixed(2)}
+                                  </span>
+                                </TableCell>
+                                <TableCell>{statusBadge(p.status)}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs font-semibold bg-secondary/30 capitalize border-border/60">
+                                    {p.gateway || p.channel || "Moolre Gateway"}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {p.created_at ? new Date(p.created_at).toLocaleString() : "-"}
+                                </TableCell>
+                                <TableCell className="text-right pr-6">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setPaymentDetailsModal(p)}
+                                    className="h-8 px-2.5 rounded-lg text-xs font-bold border-border/80 hover:bg-secondary flex items-center gap-1.5 ml-auto"
+                                  >
+                                    <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Receipt
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                          {paginatedPayments.length === 0 && (
                             <TableRow>
-                              <TableCell colSpan={4} className="text-center text-muted-foreground py-12">No payment records found</TableCell>
+                              <TableCell colSpan={7} className="text-center text-muted-foreground py-14">
+                                <div className="flex flex-col items-center justify-center space-y-2">
+                                  <CreditCard className="h-8 w-8 text-muted-foreground/50 mb-1" />
+                                  <p className="font-semibold text-foreground">No payment records found</p>
+                                  <p className="text-xs text-muted-foreground max-w-sm">
+                                    {paymentSearch || paymentStatusFilter !== "all"
+                                      ? "No transactions match your current search query or filter criteria."
+                                      : "When guests or graduates make payments via mobile money or card, transaction logs will appear here."}
+                                  </p>
+                                  {(paymentSearch || paymentStatusFilter !== "all") && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => { setPaymentSearch(""); setPaymentStatusFilter("all"); }}
+                                      className="text-xs font-bold text-primary mt-2"
+                                    >
+                                      Reset Filters
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
                             </TableRow>
                           )}
                         </TableBody>
@@ -1615,22 +2128,89 @@ export default function AdminDashboard() {
                       <div className="sr-only" aria-hidden="true">
                         <Table data-testid="admin-payments-table" />
                       </div>
-                      {payments.map(p => (
-                        <Card key={p.id} className="p-3.5 space-y-2 border-border/80 shadow-sm bg-card">
-                          <div className="flex justify-between items-center">
-                            <span className="font-mono text-xs font-bold text-foreground break-all max-w-[65%]">{p.reference}</span>
-                            {statusBadge(p.status)}
-                          </div>
-                          <div className="flex justify-between items-center pt-2 border-t border-border/40 text-xs text-muted-foreground">
-                            <span>{p.created_at ? new Date(p.created_at).toLocaleDateString() : "-"}</span>
-                            <span className="font-bold text-primary">GHC {p.amount?.toFixed(2)}</span>
-                          </div>
-                        </Card>
-                      ))}
-                      {payments.length === 0 && (
-                        <p className="text-center text-sm text-muted-foreground py-6">No payments yet</p>
+                      {paginatedPayments.map(p => {
+                        const b = p.booking || {};
+                        return (
+                          <Card key={p.id} className="p-4 space-y-3 border-border/80 shadow-sm bg-card rounded-2xl">
+                            <div className="flex justify-between items-start gap-2">
+                              <div className="space-y-1 max-w-[70%]">
+                                <div className="flex items-center gap-1">
+                                  <span className="font-mono text-xs font-bold text-foreground break-all bg-secondary/30 px-1.5 py-0.5 rounded border">
+                                    {p.reference}
+                                  </span>
+                                  <button
+                                    onClick={() => handleCopy(p.reference, "ref")}
+                                    className="p-1 rounded text-muted-foreground"
+                                  >
+                                    {copiedRef === `ref_${p.reference}` ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                                  </button>
+                                </div>
+                                <h4 className="font-bold text-sm text-foreground">{b.graduate_name || "Direct Payment"}</h4>
+                                {b.reservation_code && (
+                                  <Badge variant="secondary" className="font-mono text-[10px]">
+                                    Code: {b.reservation_code}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex flex-col items-end gap-1.5">
+                                {statusBadge(p.status)}
+                                <span className="font-black text-base text-primary">GHC {Number(p.amount || 0).toFixed(2)}</span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
+                              <span>{p.created_at ? new Date(p.created_at).toLocaleDateString() : "-"}</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setPaymentDetailsModal(p)}
+                                className="h-7 px-2.5 text-[11px] font-bold rounded-lg"
+                              >
+                                View Receipt
+                              </Button>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                      {paginatedPayments.length === 0 && (
+                        <div className="text-center py-10 space-y-2">
+                          <CreditCard className="h-7 w-7 mx-auto text-muted-foreground/50" />
+                          <p className="text-sm font-semibold text-muted-foreground">No payments found</p>
+                        </div>
                       )}
                     </div>
+
+                    {/* Pagination Bar */}
+                    {filteredPayments.length > 0 && (
+                      <div className="px-6 py-4 bg-secondary/10 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-semibold">
+                        <span className="text-muted-foreground">
+                          Showing {(paymentCurrentPage - 1) * paymentPageSize + 1} to {Math.min(paymentCurrentPage * paymentPageSize, filteredPayments.length)} of {filteredPayments.length} records
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            disabled={paymentCurrentPage === 1}
+                            onClick={() => setPaymentCurrentPage(p => p - 1)}
+                            className="h-8 w-8 rounded-lg border-border/80"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </Button>
+                          <span className="px-3 py-1 bg-secondary/80 border text-foreground rounded-lg">
+                            Page {paymentCurrentPage} of {totalPaymentPages}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            disabled={paymentCurrentPage === totalPaymentPages}
+                            onClick={() => setPaymentCurrentPage(p => p + 1)}
+                            className="h-8 w-8 rounded-lg border-border/80"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -2349,6 +2929,156 @@ export default function AdminDashboard() {
             </Button>
             <Button onClick={assignTable} data-testid="admin-assign-table-confirm" className="h-10 rounded-xl text-xs font-bold bg-primary hover:bg-primary/95 text-primary-foreground shadow-sm">
               Assign Table
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Details / Receipt Inspector Dialog */}
+      <Dialog open={!!paymentDetailsModal} onOpenChange={(open) => !open && setPaymentDetailsModal(null)}>
+        <DialogContent className="max-w-[92vw] sm:max-w-[540px] rounded-3xl border shadow-2xl p-6 bg-card max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-3 border-b">
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-primary" />
+                Transaction Receipt
+              </DialogTitle>
+              {paymentDetailsModal && statusBadge(paymentDetailsModal.status)}
+            </div>
+          </DialogHeader>
+
+          {paymentDetailsModal && (() => {
+            const b = paymentDetailsModal.booking || {};
+            return (
+              <div className="space-y-5 py-3">
+                {/* Amount and Reference Banner */}
+                <div className="p-4 rounded-2xl bg-secondary/35 border border-border/70 flex flex-col items-center justify-center text-center space-y-1">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Amount Paid</span>
+                  <p className="text-3xl font-black text-foreground tracking-tight">
+                    GHC {Number(paymentDetailsModal.amount || 0).toFixed(2)}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-2 bg-background/80 px-2.5 py-1 rounded-lg border border-border/60 max-w-full">
+                    <span className="text-xs text-muted-foreground font-semibold">Ref:</span>
+                    <span className="font-mono text-xs font-bold text-foreground break-all">{paymentDetailsModal.reference}</span>
+                    <button
+                      onClick={() => handleCopy(paymentDetailsModal.reference, "modal_ref")}
+                      className="p-1 text-muted-foreground hover:text-foreground"
+                      title="Copy Reference"
+                    >
+                      {copiedRef === `modal_ref_${paymentDetailsModal.reference}` ? (
+                        <Check className="h-3.5 w-3.5 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Transaction Metadata Grid */}
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Gateway & Settlement Details</h4>
+                  <div className="grid grid-cols-2 gap-3 text-xs bg-secondary/15 p-3.5 rounded-2xl border border-border/50">
+                    <div>
+                      <span className="text-muted-foreground">Gateway / Channel</span>
+                      <p className="font-bold text-foreground mt-0.5 capitalize">{paymentDetailsModal.gateway || paymentDetailsModal.channel || "Moolre Gateway"}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Transaction Status</span>
+                      <p className="font-bold text-foreground mt-0.5 capitalize">{paymentDetailsModal.status}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Date Created</span>
+                      <p className="font-semibold text-foreground mt-0.5">
+                        {paymentDetailsModal.created_at ? new Date(paymentDetailsModal.created_at).toLocaleString() : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Internal Record ID</span>
+                      <p className="font-mono text-[10px] text-muted-foreground truncate mt-0.5">{paymentDetailsModal.id}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer & Reservation Details */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Associated Reservation</h4>
+                    {b.reservation_code && (
+                      <Badge variant="secondary" className="font-mono text-xs font-bold px-2">
+                        {b.reservation_code}
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {b.reservation_code ? (
+                    <div className="space-y-2 text-xs bg-secondary/15 p-3.5 rounded-2xl border border-border/50">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-muted-foreground">Graduate Name</span>
+                          <p className="font-bold text-foreground mt-0.5">{b.graduate_name}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Program / Course</span>
+                          <p className="font-semibold text-foreground mt-0.5">{b.course || "N/A"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Email Address</span>
+                          <p className="font-semibold text-foreground mt-0.5 break-all">{b.email || "N/A"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Phone Number</span>
+                          <p className="font-semibold text-foreground mt-0.5">{b.phone || "N/A"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Event Date</span>
+                          <p className="font-semibold text-foreground mt-0.5">{b.graduation_date || "N/A"}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Guests & Table</span>
+                          <p className="font-semibold text-foreground mt-0.5">
+                            {b.attendees_count || 1} Guests • Table: {b.table_number || "Pending"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {b.wants_food && (
+                        <div className="pt-2 border-t border-border/40">
+                          <span className="text-muted-foreground">Catering Status:</span>
+                          <span className="font-semibold text-foreground ml-1">Custom catering package selected</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 bg-secondary/15 rounded-2xl border border-border/50 text-xs text-muted-foreground">
+                      No matching booking linked to this transaction reference.
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-3 border-t">
+            {paymentDetailsModal?.booking?.reservation_code && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const code = paymentDetailsModal.booking.reservation_code;
+                  setPaymentDetailsModal(null);
+                  navigate("/admin/bookings");
+                  setSearchQuery(code);
+                }}
+                className="h-10 rounded-xl text-xs font-bold border-border/80 mr-auto"
+              >
+                View in Bookings <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => setPaymentDetailsModal(null)}
+              className="h-10 rounded-xl text-xs font-bold"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>

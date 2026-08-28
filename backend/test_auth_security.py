@@ -119,6 +119,112 @@ class TestAuthSecurity(unittest.TestCase):
             self.assertIn("Too many failed attempts for this account", ctx.exception.detail)
             print("  [PASS] Verified: Admin login locks out targeted account even when requests originate from rotating IPs.")
 
+    def test_user_metadata_role_claim_strictly_ignored(self):
+        """Verify get_current_admin strictly ignores 'admin' role placed in user_metadata (Privilege Escalation Prevention)"""
+        mock_request = MagicMock()
+        mock_request.headers = {"Authorization": "Bearer mock_valid_token"}
+
+        # Attacker crafted user_metadata with admin role, but app_metadata has no admin role
+        mock_user = MagicMock()
+        mock_user.email = "attacker@example.com"
+        mock_user.id = "attacker_uuid"
+        mock_user.app_metadata = {"role": "authenticated"}
+        mock_user.user_metadata = {"role": "admin"}  # Attempted privilege escalation
+
+        mock_res = MagicMock()
+        mock_res.user = mock_user
+
+        with patch.object(server, 'supabase') as mock_sb, patch.dict('os.environ', {'ADMIN_EMAILS': ''}):
+            mock_sb.auth.get_user = AsyncMock(return_value=mock_res)
+            
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(server.get_current_admin(mock_request))
+            
+            self.assertEqual(ctx.exception.status_code, 403)
+            self.assertIn("administrator privileges required", ctx.exception.detail)
+            print("  [PASS] Verified: get_current_admin strictly rejects role claims in user_metadata.")
+
+    def test_password_complexity_validator(self):
+        """Verify validate_password_complexity enforces length, uppercase, lowercase, digit, and special character"""
+        self.assertIsNotNone(server.validate_password_complexity("short1!")) # < 8 chars
+        self.assertIsNotNone(server.validate_password_complexity("nouppercase123!")) # no uppercase
+        self.assertIsNotNone(server.validate_password_complexity("NOLOWERCASE123!")) # no lowercase
+        self.assertIsNotNone(server.validate_password_complexity("NoDigitsHere!@#")) # no digit
+        self.assertIsNotNone(server.validate_password_complexity("NoSpecialChars123")) # no special char
+        self.assertIsNone(server.validate_password_complexity("ValidPass123!@#")) # Strong password
+        print("  [PASS] Verified: validate_password_complexity enforces all OWASP password complexity rules.")
+
+    def test_admin_change_password_requires_valid_current_password(self):
+        """Verify admin_change_password rejects invalid current passwords"""
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_admin = {"email": "admin@kadelgh.com", "id": "admin_123", "role": "admin"}
+
+        data = server.AdminPasswordChangeReq(
+            current_password="WrongCurrentPassword123!",
+            new_password="BrandNewStrongPassword123!"
+        )
+
+        with patch.object(server, 'supabase') as mock_sb:
+            mock_sb.auth.sign_in_with_password = AsyncMock(side_effect=Exception("Invalid credentials"))
+
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(server.admin_change_password(data, mock_request, mock_admin))
+
+            self.assertEqual(ctx.exception.status_code, 401)
+            self.assertIn("Current password is incorrect", ctx.exception.detail)
+            print("  [PASS] Verified: admin_change_password rejects incorrect current passwords.")
+
+    def test_admin_change_password_success(self):
+        """Verify admin_change_password successfully updates password when current password is verified"""
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_admin = {"email": "admin@kadelgh.com", "id": "admin_123", "role": "admin"}
+
+        data = server.AdminPasswordChangeReq(
+            current_password="CorrectOldPassword123!",
+            new_password="BrandNewStrongPassword123!"
+        )
+
+        mock_verify_res = MagicMock()
+        mock_verify_res.user = MagicMock()
+
+        with patch.object(server, 'supabase') as mock_sb:
+            mock_sb.auth.sign_in_with_password = AsyncMock(return_value=mock_verify_res)
+            mock_sb.auth.admin.update_user_by_id = AsyncMock(return_value={"id": "admin_123"})
+
+            res = asyncio.run(server.admin_change_password(data, mock_request, mock_admin))
+            self.assertEqual(res["message"], "Password changed successfully")
+            print("  [PASS] Verified: admin_change_password successfully updates password on valid verification.")
+
+    def test_admin_change_password_rate_limiting(self):
+        """Verify admin_change_password throttles rapid repeated attempts"""
+        server._rate_limit_records.clear()
+        mock_request = MagicMock()
+        mock_request.client.host = "127.0.0.1"
+        mock_admin = {"email": "admin_throttle@kadelgh.com", "id": "admin_123", "role": "admin"}
+
+        data = server.AdminPasswordChangeReq(
+            current_password="WrongPassword123!",
+            new_password="BrandNewStrongPassword123!"
+        )
+
+        with patch.object(server, 'supabase') as mock_sb:
+            mock_sb.auth.sign_in_with_password = AsyncMock(side_effect=Exception("Invalid credentials"))
+
+            # 3 allowed attempts
+            for _ in range(3):
+                with self.assertRaises(HTTPException) as ctx:
+                    asyncio.run(server.admin_change_password(data, mock_request, mock_admin))
+                self.assertEqual(ctx.exception.status_code, 401)
+
+            # 4th attempt must be 429
+            with self.assertRaises(HTTPException) as ctx:
+                asyncio.run(server.admin_change_password(data, mock_request, mock_admin))
+            self.assertEqual(ctx.exception.status_code, 429)
+            self.assertIn("Too many password change attempts", ctx.exception.detail)
+            print("  [PASS] Verified: admin_change_password rate limits excessive password change attempts.")
+
     def test_webhook_replay_protection(self):
         """Verify webhook rejects stale/expired timestamps"""
         import time
